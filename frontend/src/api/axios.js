@@ -45,7 +45,8 @@ export async function getUsers() {
 // Add other helpers as needed (register, etc)
 export default AUTH_API;
 
-
-
-
-
+export function setToken(token) {
+  if (!token) return removeToken();
+  AUTH_API.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  localStorage.setItem(TOKEN_KEY, token);
+}

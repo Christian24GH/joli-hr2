@@ -15,7 +15,15 @@ import {
   LogsIcon,
   MapPinIcon,
   GlobeIcon,
-  LayoutDashboard
+  LayoutDashboard,
+  Brain,
+  ChartColumn,
+  LibraryBig,
+  History,
+  Blocks,
+  ChartBarBig,
+  Sparkle,
+  ScrollText,
 } from "lucide-react"
 
 import { Link } from 'react-router'
@@ -39,46 +47,106 @@ import { useContext } from "react"
 
 import logo from '@/assets/joli_cropped.png'
 const data = {
-
   HR2Nav: [
     {
       NavGroup: {
-        NavLabel: 'Human Resource II',
+        NavLabel: 'Analytics',
         NavItems: [
           {
             title: "Dashboard",
-            url: '/',
+            url: '/db',
             icon: LayoutDashboard,
           },
+        ]
+      },
+    },
+    {
+      NavGroup: {
+        NavLabel: 'Competency Management',
+        NavItems: [
           {
-            title: "Competency Management",
-            url: '/cms',
-            icon: ChartSpline,
+            title: "Competency Profile",
+            url: '/comp_profile',
+            icon: Brain,
           },
           {
-            title: "Learning Management",
-            url: '/lms',
-            icon: BookOpenIcon,
-          },
-          {
-            title: "Training Management",
-            url: '/tms',
-            icon: WrenchIcon,
-          },
-          {
-            title: "Succession Planning",
-            url: '/sps',
-            icon: ChartSpline,
-          },
-          {
-            title: "Employee Self-Service",
-            url: '/ess',
-            icon: User,
+            title: "Assessment & Development",
+            url: '/assess_dev',
+            icon: ChartColumn,
           },
         ]
-      }
-    }
+      },
+    },
+    {
+      NavGroup: {
+        NavLabel: 'Learning Management',
+        NavItems: [
+          {
+            title: "Course Catalog",
+            url: '/l_catalog',
+            icon: LibraryBig,
+          },
+          {
+            title: "History",
+            url: '/l_history',
+            icon: History,
+          },
+        ]
+      },
+    },
+    {
+      NavGroup: {
+        NavLabel: 'Training Management',
+        NavItems: [
+          {
+            title: "Training Catalog",
+            url: '/T_catalog',
+            icon: Blocks,
+          },
+          {
+            title: "History",
+            url: '/T_history',
+            icon: History,
+          },
+        ]
+      },
+    },
+    {
+      NavGroup: {
+        NavLabel: 'Succession Planning',
+        NavItems: [
+          {
+            title: "Talent Analytics",
+            url: '/talent_analytics',
+            icon: ChartBarBig,
+          },
+          {
+            title: "Leadership Development",
+            url: '/leadership_dev',
+            icon: Sparkle,
+          },
+        ]
+      },
+    },
+    {
+      NavGroup: {
+        NavLabel: 'Employee Self-Service',
+        NavItems: [
+          {
+            title: "Personal Data",
+            url: '/personal_data',
+            icon: User,
+          },
+          {
+            title: "Request Forms",
+            url: '/request_forms',
+            icon: ScrollText,
+          },
+        ]
+      },
+    },
   ],
+  
   /** Logistics 1 NavItems */
   logisticsINav: [
     {

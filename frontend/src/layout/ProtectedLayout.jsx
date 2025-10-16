@@ -26,7 +26,7 @@ export function Layout({allowedRoles }) {
       if (!auth) {
         setAuthorized(false)
         const timer = setTimeout(() => {
-          //logout()
+          logout()
         }, 2500)
         return () => clearTimeout(timer)
       } else if (!allowedRoles.includes(auth.role)) {
@@ -36,7 +36,7 @@ export function Layout({allowedRoles }) {
         });
 
         const timer = setTimeout(() => {
-          //logout();
+          logout();
         }, 2500)
 
         return () => clearTimeout(timer)

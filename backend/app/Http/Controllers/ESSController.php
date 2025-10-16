@@ -64,6 +64,10 @@ class ESSController extends Controller
     {
         $employee = EmployeeSelfService::find($id);
         if (!$employee) {
+            // Try to find by auth_user_id if direct lookup failed
+            $employee = EmployeeSelfService::where('auth_user_id', $id)->first();
+        }
+        if (!$employee) {
             return response()->json(['error' => 'Employee not found'], 404);
         }
         return response()->json($employee);
@@ -147,14 +151,31 @@ class ESSController extends Controller
             
             // If employee_id is provided, get that employee's leave requests
             if ($employeeId) {
-                $query = LeaveRequest::with(['employee:id,first_name,last_name,email,department'])
-                    ->where('employee_id', $employeeId);
+                $query = LeaveRequest::with(['employee:id,first_name,last_name,email,department']);
+                
+                // First try to find by employee_id
+                $query->where('employee_id', $employeeId);
                 
                 if ($status) {
                     $query->where('status', $status);
                 }
                 
                 $leaveRequests = $query->orderBy('created_at', 'desc')->get();
+                
+                // If no requests found and employee_id might be an auth_user_id, try to find the actual employee
+                if ($leaveRequests->isEmpty()) {
+                    $employee = EmployeeSelfService::where('auth_user_id', $employeeId)->first();
+                    if ($employee) {
+                        $query = LeaveRequest::with(['employee:id,first_name,last_name,email,department'])
+                            ->where('employee_id', $employee->id);
+                        
+                        if ($status) {
+                            $query->where('status', $status);
+                        }
+                        
+                        $leaveRequests = $query->orderBy('created_at', 'desc')->get();
+                    }
+                }
             } else {
                 // Get all leave requests for HR2 Admin view
                 $query = LeaveRequest::with(['employee:id,first_name,last_name,email,department']);
@@ -187,6 +208,41 @@ class ESSController extends Controller
                 'reason' => 'required|string|max:1000',
             ]);
 
+            // Check if employee_id is actually an auth_user_id and resolve to actual employee_id
+            $employeeId = $validatedData['employee_id'];
+            $employee = EmployeeSelfService::where('id', $employeeId)->first();
+            
+            if (!$employee) {
+                // Try to find by auth_user_id
+                $employee = EmployeeSelfService::where('auth_user_id', $employeeId)->first();
+                if (!$employee) {
+                    // Employee doesn't exist, create a basic HR2 employee record
+                    // We'll create a minimal record and let the user update details later
+                    $employee = EmployeeSelfService::create([
+                        'auth_user_id' => $employeeId,
+                        'first_name' => 'User', // Placeholder
+                        'last_name' => $employeeId, // Use ID as placeholder
+                        'email' => 'user' . $employeeId . '@example.com', // Placeholder email
+                        'department' => null,
+                        'position' => null,
+                        'hire_date' => null,
+                        'phone' => null,
+                        'address' => null,
+                        'birthday' => null,
+                        'civil_status' => null,
+                        'emergency_contact' => null,
+                        'manager' => null,
+                        'employee_status' => 'Active',
+                        'profile_photo_url' => null,
+                        'roles' => null,
+                    ]);
+                    
+                    Log::info('Created basic HR2 employee record for user ID: ' . $employeeId);
+                }
+            }
+
+            $validatedData['employee_id'] = $employee->id;
+            
             $leaveRequest = LeaveRequest::create($validatedData);
             
             // Load the employee relationship
@@ -298,6 +354,19 @@ class ESSController extends Controller
             $employeeId = $request->query('employee_id');
             
             if ($employeeId) {
+                // Check if employee_id is actually an auth_user_id and resolve to actual employee_id
+                $employee = EmployeeSelfService::where('id', $employeeId)->first();
+                
+                if (!$employee) {
+                    // Try to find by auth_user_id
+                    $employee = EmployeeSelfService::where('auth_user_id', $employeeId)->first();
+                    if ($employee) {
+                        $employeeId = $employee->id;
+                    } else {
+                        return response()->json(['error' => 'Employee not found'], 404);
+                    }
+                }
+                
                 // Employee-specific stats
                 $stats = [
                     'total' => LeaveRequest::where('employee_id', $employeeId)->count(),
@@ -389,14 +458,31 @@ class ESSController extends Controller
             
             // If employee_id is provided, get that employee's timesheet adjustment requests
             if ($employeeId) {
-                $query = TimesheetAdjustment::with(['employee:id,first_name,last_name,email,department'])
-                    ->where('employee_id', $employeeId);
+                $query = TimesheetAdjustment::with(['employee:id,first_name,last_name,email,department']);
+                
+                // First try to find by employee_id
+                $query->where('employee_id', $employeeId);
                 
                 if ($status) {
                     $query->where('status', $status);
                 }
                 
                 $timesheetAdjustments = $query->orderBy('submitted_at', 'desc')->get();
+                
+                // If no requests found and employee_id might be an auth_user_id, try to find the actual employee
+                if ($timesheetAdjustments->isEmpty()) {
+                    $employee = EmployeeSelfService::where('auth_user_id', $employeeId)->first();
+                    if ($employee) {
+                        $query = TimesheetAdjustment::with(['employee:id,first_name,last_name,email,department'])
+                            ->where('employee_id', $employee->id);
+                        
+                        if ($status) {
+                            $query->where('status', $status);
+                        }
+                        
+                        $timesheetAdjustments = $query->orderBy('submitted_at', 'desc')->get();
+                    }
+                }
             } else {
                 // Get all timesheet adjustment requests for HR2 Admin view
                 $query = TimesheetAdjustment::with(['employee:id,first_name,last_name,email,department']);
@@ -428,6 +514,20 @@ class ESSController extends Controller
                 'new_time_out' => 'required|string|regex:/^\d{2}:\d{2}$/',
                 'reason' => 'required|string|max:1000',
             ]);
+
+            // Check if employee_id is actually an auth_user_id and resolve to actual employee_id
+            $employeeId = $validatedData['employee_id'];
+            $employee = EmployeeSelfService::where('id', $employeeId)->first();
+            
+            if (!$employee) {
+                // Try to find by auth_user_id
+                $employee = EmployeeSelfService::where('auth_user_id', $employeeId)->first();
+                if ($employee) {
+                    $validatedData['employee_id'] = $employee->id;
+                } else {
+                    return response()->json(['error' => 'Employee not found'], 404);
+                }
+            }
 
             $validatedData['submitted_at'] = now();
             $validatedData['status'] = 'Pending';
@@ -549,11 +649,30 @@ class ESSController extends Controller
 
             // Filter by employee_id if provided
             if ($request->has('employee_id')) {
-                $query->where('employee_id', $request->employee_id);
+                $employeeId = $request->employee_id;
+                
+                // First try to find by employee_id
+                $query->where('employee_id', $employeeId);
+                
+                // If no reimbursements found and employee_id might be an auth_user_id, try to find the actual employee
+                $tempQuery = clone $query;
+                $reimbursements = $tempQuery->get();
+                
+                if ($reimbursements->isEmpty()) {
+                    $employee = EmployeeSelfService::where('auth_user_id', $employeeId)->first();
+                    if ($employee) {
+                        $query = Reimbursement::with('employee')->where('employee_id', $employee->id);
+                        
+                        // Reapply status filter if provided
+                        if ($request->has('status')) {
+                            $query->where('status', $request->status);
+                        }
+                    }
+                }
             }
 
-            // Filter by status if provided
-            if ($request->has('status')) {
+            // Filter by status if provided (only if not already applied above)
+            if ($request->has('status') && !$request->has('employee_id')) {
                 $query->where('status', $request->status);
             }
 
@@ -580,6 +699,20 @@ class ESSController extends Controller
                 'description' => 'required|string|max:1000',
                 'receipt' => 'required|file|mimes:jpeg,jpg,png,pdf|max:5120', // 5MB max, now required
             ]);
+
+            // Check if employee_id is actually an auth_user_id and resolve to actual employee_id
+            $employeeId = $validatedData['employee_id'];
+            $employee = EmployeeSelfService::where('id', $employeeId)->first();
+            
+            if (!$employee) {
+                // Try to find by auth_user_id
+                $employee = EmployeeSelfService::where('auth_user_id', $employeeId)->first();
+                if ($employee) {
+                    $validatedData['employee_id'] = $employee->id;
+                } else {
+                    return response()->json(['error' => 'Employee not found'], 404);
+                }
+            }
 
             $validatedData['status'] = 'Pending';
             $validatedData['submitted_at'] = now();

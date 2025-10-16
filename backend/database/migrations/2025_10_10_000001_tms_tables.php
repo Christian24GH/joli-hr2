@@ -12,7 +12,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Add detailed fields to training_management table if they don't exist
+        // ===========================================
+        // TMS TABLES CREATION AND MODIFICATIONS
+        // ===========================================
+
+        // Add detailed fields to training_management table
         Schema::table('training_management', function (Blueprint $table) {
             if (!Schema::hasColumn('training_management', 'description')) {
                 $table->text('description')->nullable()->after('provider');
@@ -75,6 +79,7 @@ return new class extends Migration
                 $table->timestamps();
 
                 $table->foreign('training_id')->references('id')->on('training_management')->onDelete('cascade');
+                // Foreign key constraints removed for flexibility
                 // $table->foreign('employee_id')->references('id')->on('employee_self_service')->onDelete('cascade');
                 // $table->foreign('approved_by')->references('id')->on('employee_self_service')->onDelete('set null');
 
@@ -98,6 +103,7 @@ return new class extends Migration
                 $table->json('competencies_gained')->nullable();
                 $table->timestamps();
 
+                // Foreign key constraints removed for flexibility
                 // $table->foreign('employee_id')->references('id')->on('employee_self_service')->onDelete('set null');
                 $table->foreign('training_id')->references('id')->on('training_management');
                 $table->foreign('application_id')->references('id')->on('training_applications');
@@ -123,6 +129,7 @@ return new class extends Migration
                 $table->timestamps();
 
                 $table->foreign('completion_id')->references('id')->on('training_completions')->onDelete('cascade');
+                // Foreign key constraints removed for flexibility
                 // $table->foreign('employee_id')->references('id')->on('employee_self_service');
                 $table->foreign('training_id')->references('id')->on('training_management');
 
@@ -161,6 +168,7 @@ return new class extends Migration
                 $table->timestamps();
 
                 $table->foreign('training_application_id')->references('id')->on('training_applications')->onDelete('cascade');
+                // Foreign key constraints removed for flexibility
                 // $table->foreign('employee_id')->references('id')->on('employee_self_service');
                 $table->foreign('training_id')->references('id')->on('training_management');
 
@@ -169,40 +177,8 @@ return new class extends Migration
             });
         }
 
-        // Remove foreign key constraints on employee_id fields to prevent issues with employee data
-        // This allows the system to work even if employee records are moved or deleted
-
-        // Check and drop foreign key constraint on training_applications.employee_id
-        $constraintExists = DB::select("
-            SELECT CONSTRAINT_NAME
-            FROM information_schema.TABLE_CONSTRAINTS
-            WHERE TABLE_SCHEMA = DATABASE()
-            AND TABLE_NAME = 'training_applications'
-            AND CONSTRAINT_TYPE = 'FOREIGN KEY'
-            AND CONSTRAINT_NAME = 'training_applications_employee_id_foreign'
-        ");
-
-        if (!empty($constraintExists)) {
-            Schema::table('training_applications', function (Blueprint $table) {
-                $table->dropForeign(['employee_id']);
-            });
-        }
-
-        // Check and drop foreign key constraint on training_completions.employee_id
-        $constraintExists = DB::select("
-            SELECT CONSTRAINT_NAME
-            FROM information_schema.TABLE_CONSTRAINTS
-            WHERE TABLE_SCHEMA = DATABASE()
-            AND TABLE_NAME = 'training_completions'
-            AND CONSTRAINT_TYPE = 'FOREIGN KEY'
-            AND CONSTRAINT_NAME = 'training_completions_employee_id_foreign'
-        ");
-
-        if (!empty($constraintExists)) {
-            Schema::table('training_completions', function (Blueprint $table) {
-                $table->dropForeign(['employee_id']);
-            });
-        }
+        // Insert Sample Data (optional - uncomment if needed)
+        // $this->insertSampleData();
     }
 
     /**
@@ -223,12 +199,79 @@ return new class extends Migration
                 'start_date', 'end_date', 'max_participants', 'location', 'enrolled_count',
                 'training_type', 'difficulty', 'format', 'topic', 'rating'
             ];
-            
+
             foreach ($columns as $column) {
                 if (Schema::hasColumn('training_management', $column)) {
                     $table->dropColumn($column);
                 }
             }
         });
+    }
+
+    /**
+     * Insert sample data (optional method)
+     */
+    private function insertSampleData(): void
+    {
+        // Sample training sessions
+        DB::table('training_management')->insert([
+            [
+                'program_name' => 'Advanced Leadership Development',
+                'provider' => 'Internal HR',
+                'description' => 'Comprehensive leadership training program for senior managers',
+                'objectives' => 'Develop strategic thinking, enhance communication skills, master team motivation techniques',
+                'trainer' => 'Dr. Sarah Johnson',
+                'prerequisites' => 'Minimum 3 years management experience',
+                'start_date' => now()->addDays(14)->toDateTimeString(),
+                'end_date' => now()->addDays(16)->toDateTimeString(),
+                'max_participants' => 15,
+                'location' => 'Conference Room A',
+                'training_type' => 'In-Person',
+                'difficulty' => 'Advanced',
+                'format' => 'Workshop',
+                'topic' => 'Leadership',
+                'rating' => 4.8,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'program_name' => 'Digital Marketing Essentials',
+                'provider' => 'External Partner',
+                'description' => 'Learn fundamental digital marketing strategies and tools',
+                'objectives' => 'Master SEO principles, understand social media marketing, learn content strategy',
+                'trainer' => 'Mike Chen',
+                'prerequisites' => 'Basic computer skills',
+                'start_date' => now()->addDays(21)->toDateTimeString(),
+                'end_date' => now()->addDays(23)->toDateTimeString(),
+                'max_participants' => 20,
+                'location' => 'Training Room B',
+                'training_type' => 'Hybrid',
+                'difficulty' => 'Beginner',
+                'format' => 'Lecture + Hands-on',
+                'topic' => 'Marketing',
+                'rating' => 4.5,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'program_name' => 'Cybersecurity Awareness',
+                'provider' => 'IT Security Team',
+                'description' => 'Essential cybersecurity training for all employees',
+                'objectives' => 'Understand cyber threats, learn security best practices, recognize phishing attempts',
+                'trainer' => 'Alex Rivera',
+                'prerequisites' => 'None',
+                'start_date' => now()->addDays(7)->toDateTimeString(),
+                'end_date' => now()->addDays(7)->toDateTimeString(),
+                'max_participants' => 50,
+                'location' => 'Auditorium',
+                'training_type' => 'Online',
+                'difficulty' => 'Beginner',
+                'format' => 'Webinar',
+                'topic' => 'Security',
+                'rating' => 4.9,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        ]);
     }
 };

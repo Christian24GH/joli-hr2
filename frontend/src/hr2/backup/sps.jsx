@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { hr2 } from '@/api/hr2';
-import AuthContext from '../context/AuthProvider';
+import AuthContext from '../../context/AuthProvider';
 
 function SuccessionPlanningSystem() {
     const { auth, loading: authLoading } = useContext(AuthContext);

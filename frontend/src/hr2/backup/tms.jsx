@@ -8,8 +8,8 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import AuthContext from '../context/AuthProvider';
-import { hr2 } from '../api/hr2.js';
+import AuthContext from '../../context/AuthProvider.jsx';
+import { hr2 } from '../../api/hr2.js';
 import { toast, Toaster } from 'sonner';
 import {
     Search, Calendar, User, Plus, Edit,

@@ -19,12 +19,17 @@ return [
     'allowed_methods' => ['*'],
 
     //SPECIFY ALLOWED ORIGINS HERE
-    'allowed_origins' => [
-        env('FRONTEND_URL', 'http://localhost:5173'),
-        'http://localhost',
-        'http://localhost:8091', // Auth service
-        'http://localhost:8092', // HR2 service
-    ],
+    'allowed_origins' => array_merge(explode(',', env('ALLOWED_ORIGINS', '')), [
+        /**LOCAL DEV */
+        'http://front.tchr2.jolitravel.local:3002',
+        'http://auth.jolitravel.local', // Auth service
+        'http://back.tchr2.jolitravel.local', // HR2 service
+
+
+        /**ON DEPLOYMENT ADD MO ULIT DITO FRONTEND URL MO */
+        "https://your-frontend-domain.com",
+
+    ]),
 
     'allowed_origins_patterns' => [],
 

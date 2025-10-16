@@ -8,46 +8,31 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AuthContext from '../context/AuthProvider';
 import { hr2 } from '../api/hr2';
 import { toast, Toaster } from 'sonner';
 import {
-  BookOpen,
-  TrendingUp,
-  BarChart3,
-  GraduationCap,
-  Route,
-  ClipboardList,
-  Play,
-  CheckCircle,
-  Clock,
-  Users,
-  Calendar,
-  Award,
-  Target,
-  Search,
-  Plus,
-  LibraryBig,
-  Edit,
-  Trash2,
-  X
+  BookOpen, TrendingUp,
+  BarChart3, GraduationCap, Route,
+  ClipboardList, Play, CheckCircle,
+  Clock, Users, Calendar,
+  Award, Target, Search, Plus,
+  LibraryBig, Edit, Trash2, X,
+  History, RotateCcw, Download, Upload,
+  LibraryIcon
 } from 'lucide-react';
 
-function LearningManagementSystem() {
+function CourseCatalogAndPlans() {
   const { auth } = useContext(AuthContext);
 
-  // Check user role
   const isHR2Admin = auth?.role === 'HR2 Admin';
   const isTrainer = auth?.role === 'Trainer';
   const isEmployee = auth?.role === 'Employee';
 
-  // Get current user ID
   const getCurrentUserId = () => {
     return parseInt(auth?.employee_id || localStorage.getItem('employeeId') || auth?.id);
   };
 
-  // State for API data
   const [courseCatalog, setCourseCatalog] = useState([]);
   const [availableLearningPlans, setAvailableLearningPlans] = useState([]);
   const [assignedLearningPlans, setAssignedLearningPlans] = useState([]);
@@ -56,21 +41,21 @@ function LearningManagementSystem() {
   const [progressStats, setProgressStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // UI states
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Dialog states
   const [showCreateCourse, setShowCreateCourse] = useState(false);
   const [showCreatePlan, setShowCreatePlan] = useState(false);
   const [showEditCourse, setShowEditCourse] = useState(false);
   const [showEditPlan, setShowEditPlan] = useState(false);
   const [showViewCourse, setShowViewCourse] = useState(false);
   const [showViewProgress, setShowViewProgress] = useState(false);
+  const [showEnrolledEmployees, setShowEnrolledEmployees] = useState(false);
   const [selectedViewCourse, setSelectedViewCourse] = useState(null);
   const [selectedViewProgress, setSelectedViewProgress] = useState(null);
+  const [selectedCourseForEmployees, setSelectedCourseForEmployees] = useState(null);
+  const [enrolledEmployees, setEnrolledEmployees] = useState([]);
+  const [employeeGrades, setEmployeeGrades] = useState({});
+  const [completedCoursesList, setCompletedCoursesList] = useState([]);
 
-  // Form states
   const [courseForm, setCourseForm] = useState({
     title: '',
     description: '',
@@ -90,58 +75,63 @@ function LearningManagementSystem() {
     estimated_hours: ''
   });
 
-  // Selected items for editing
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
 
-  // Load data from API
   useEffect(() => {
     const loadData = async () => {
-      if (!auth) return;
-
-      setLoading(true);
       try {
-        // Load dashboard data
+        setLoading(true);
+
+        // Load course catalog
+        const coursesResponse = await hr2.learning.courses.getAll();
+        if (coursesResponse.data && coursesResponse.data.success) {
+          const userId = getCurrentUserId();
+          const processedCourses = (coursesResponse.data.data || []).map(course => ({
+            ...course,
+            isEnrolled: course.enrolled_users?.includes(userId) || false
+          }));
+          setCourseCatalog(processedCourses);
+        }
+
+        // Load learning plans for authenticated users
         const userId = getCurrentUserId();
-        console.log('Loading LMS data for user:', userId, 'auth object:', auth);
+        const plansResponse = await hr2.learning.learningPlans.getAvailable(userId);
+        if (plansResponse.data && plansResponse.data.success) {
+          setAvailableLearningPlans(plansResponse.data.data || []);
+        }
 
-        const [courseCatalogRes, availablePlansRes, learningPlansRes, progressRes, enrolledCoursesRes] = await Promise.all([
-          hr2.learning.courses.getAll(), // Use direct courses endpoint instead of dashboard
-          hr2.learning.learningPlans.getAvailable(userId),
-          hr2.learning.learningPlans.getByUser(userId),
-          hr2.learning.dashboard.getLearningProgress(userId),
-          hr2.learning.progress.getByUser(userId)
-        ]);
+        // Load assigned learning plans for authenticated users
+        const assignedPlansResponse = await hr2.learning.learningPlans.getByUser(userId);
+        if (assignedPlansResponse.data && assignedPlansResponse.data.success) {
+          setAssignedLearningPlans(assignedPlansResponse.data.data || []);
+        }
 
-        // Process course catalog to add enrollment status
-        const processedCourses = (courseCatalogRes.data?.data || []).map(course => ({
-          ...course,
-          isEnrolled: course.enrolled_users?.includes(userId) || false
-        }));
+        // Load user-specific data if authenticated
+        if (auth?.employee_id) {
 
-        setCourseCatalog(processedCourses);
-        setAvailableLearningPlans(availablePlansRes.data?.data || []);
-        setAssignedLearningPlans(learningPlansRes.data?.data || []);
-        setProgressStats({
-          totalCourses: progressRes.data?.data?.totalCourses || 0,
-          completedCourses: progressRes.data?.data?.completedCourses || 0,
-          inProgressCourses: progressRes.data?.data?.inProgressCourses || 0,
-          overallProgress: progressRes.data?.data?.overallProgress || 0
-        });
-        setLearningProgress(progressRes.data?.data?.recentActivity || []);
-        setEnrolledCourses(enrolledCoursesRes.data?.data || []);
+          // Load learning progress
+          const progressResponse = await hr2.learning.progress.getByUser(userId);
+          if (progressResponse.data && progressResponse.data.success) {
+            setLearningProgress(progressResponse.data.data || []);
+          }
 
-        setError(null);
-      } catch (err) {
-        console.error('Failed to load LMS data:', err);
-        setError('Failed to load learning management data');
+          // Load enrolled courses
+          const enrolledResponse = await hr2.learning.progress.getByUser(userId);
+          if (enrolledResponse.data && enrolledResponse.data.success) {
+            setEnrolledCourses(enrolledResponse.data.data || []);
+          }
 
-        // Fallback to mock data on error
-        setCourseCatalog(mockData.courseCatalog);
-        setAssignedLearningPlans(mockData.learningPlans);
-        setAvailableLearningPlans(mockData.availableLearningPlans || []);
-        setProgressStats(mockData.progressStats);
-        setLearningProgress(mockData.recentActivity);
+          // Calculate progress stats
+          const statsResponse = await hr2.learning.dashboard.getLearningProgress(userId);
+          if (statsResponse.data && statsResponse.data.success) {
+            setProgressStats(statsResponse.data.data || {});
+          }
+        }
+
+      } catch (error) {
+        console.error('Failed to load data:', error);
+        setError('Failed to load learning management data. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -150,12 +140,58 @@ function LearningManagementSystem() {
     loadData();
   }, [auth]);
 
-  // Calculate metrics from dashboard data
+  // Listen for course catalog refresh events from other components
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'hr2_course_catalog_refresh') {
+        // Reload course catalog and related data
+        const reloadData = async () => {
+          try {
+            const userId = getCurrentUserId();
+
+            // Reload course catalog
+            const coursesResponse = await hr2.learning.courses.getAll();
+            if (coursesResponse.data && coursesResponse.data.success) {
+              const processedCourses = (coursesResponse.data.data || []).map(course => ({
+                ...course,
+                isEnrolled: course.enrolled_users?.includes(userId) || false
+              }));
+              setCourseCatalog(processedCourses);
+            }
+
+            // Reload learning progress and stats if user is authenticated
+            if (auth?.employee_id) {
+              const [progressRes, enrolledCoursesRes] = await Promise.all([
+                hr2.learning.dashboard.getLearningProgress(userId),
+                hr2.learning.progress.getByUser(userId)
+              ]);
+
+              setProgressStats({
+                totalCourses: progressRes.data?.data?.totalCourses || 0,
+                completedCourses: progressRes.data?.data?.completedCourses || 0,
+                inProgressCourses: progressRes.data?.data?.inProgressCourses || 0,
+                overallProgress: progressRes.data?.data?.overallProgress || 0
+              });
+              setLearningProgress(progressRes.data?.data?.recentActivity || []);
+              setEnrolledCourses(enrolledCoursesRes.data?.data || []);
+            }
+          } catch (error) {
+            console.error('Failed to reload course catalog:', error);
+          }
+        };
+
+        reloadData();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [auth]);
+
   const completedCourses = progressStats.completedCourses || 0;
   const totalCourses = progressStats.totalCourses || 0;
   const overallProgress = progressStats.overallProgress || 0;
 
-  // Utility functions
   const getCourseById = (courseId) => {
     return (courseCatalog || []).find(course => course.id === courseId);
   };
@@ -164,7 +200,6 @@ function LearningManagementSystem() {
     const plan = assignedLearningPlans.find(p => p.id === planId);
     if (!plan) return { completed: 0, total: 0, percentage: 0 };
 
-    // Learning plans now come with progress data from dashboard API
     return {
       completed: plan.completedCourses || 0,
       total: plan.totalCourses || 0,
@@ -174,42 +209,30 @@ function LearningManagementSystem() {
 
   const getStatusBadgeVariant = (status) => {
     switch (status?.toLowerCase()) {
-      case 'completed': return 'default';
-      case 'in_progress': return 'secondary';
-      case 'not_started': return 'outline';
-      default: return 'outline';
+      case 'completed':
+        return 'default';
+      case 'in_progress':
+        return 'secondary';
+      case 'not_started':
+        return 'outline';
+      default:
+        return 'outline';
     }
   };
 
-  // Handler functions
   const handleCreateCourse = async () => {
     if (!courseForm.title || !courseForm.description || !courseForm.category) {
-      toast.error('Please fill in required fields (Title, Description, Category)');
+      toast.error('Please fill in all required fields');
       return;
     }
 
     try {
-      const courseData = {
-        title: courseForm.title,
-        description: courseForm.description,
-        category: courseForm.category,
-        level: courseForm.level,
-        schedule_date: courseForm.schedule_date,
-        instructor: courseForm.instructor,
-        objectives: courseForm.objectives
-      };
+      const response = await hr2.learning.courses.create({
+        ...courseForm,
+        created_by: getCurrentUserId()
+      });
 
-      // Only add URL fields if they have values
-      if (courseForm.meeting_link.trim()) {
-        courseData.meeting_link = courseForm.meeting_link.trim();
-      }
-      if (courseForm.assessment_link.trim()) {
-        courseData.assessment_link = courseForm.assessment_link.trim();
-      }
-
-      const response = await hr2.learning.courses.create(courseData);
-
-      if (response.data) {
+      if (response.data && response.data.success) {
         toast.success('Course created successfully');
         setShowCreateCourse(false);
         setCourseForm({
@@ -223,9 +246,19 @@ function LearningManagementSystem() {
           meeting_link: '',
           assessment_link: ''
         });
-        // Reload data using the courses endpoint instead of dashboard
+
+        // Reload course catalog
         const coursesResponse = await hr2.learning.courses.getAll();
-        setCourseCatalog(coursesResponse.data?.data || []);
+        if (coursesResponse.data && coursesResponse.data.success) {
+          const userId = getCurrentUserId();
+          const processedCourses = (coursesResponse.data.data || []).map(course => ({
+            ...course,
+            isEnrolled: course.enrolled_users?.includes(userId) || false
+          }));
+          setCourseCatalog(processedCourses);
+        }
+      } else {
+        toast.error(response.data?.message || 'Failed to create course');
       }
     } catch (error) {
       console.error('Failed to create course:', error);
@@ -235,20 +268,17 @@ function LearningManagementSystem() {
 
   const handleCreatePlan = async () => {
     if (!planForm.title || planForm.courses.length === 0) {
-      toast.error('Please fill in all required fields');
+      toast.error('Please fill in the plan title and select at least one course');
       return;
     }
 
     try {
       const response = await hr2.learning.learningPlans.create({
-        title: planForm.title,
-        description: planForm.description,
-        courses: planForm.courses,
-        estimated_hours: planForm.estimated_hours
-        // assigned_users is intentionally omitted - users must apply manually
+        ...planForm,
+        created_by: getCurrentUserId()
       });
 
-      if (response.data) {
+      if (response.data && response.data.success) {
         toast.success('Learning plan created successfully');
         setShowCreatePlan(false);
         setPlanForm({
@@ -257,14 +287,21 @@ function LearningManagementSystem() {
           courses: [],
           estimated_hours: ''
         });
-        // Reload data - new plan should appear in available plans
+
+        // Reload learning plans
         const userId = getCurrentUserId();
-        const [availablePlansRes, learningPlansRes] = await Promise.all([
-          hr2.learning.learningPlans.getAvailable(userId),
-          hr2.learning.learningPlans.getByUser(userId)
-        ]);
-        setAvailableLearningPlans(availablePlansRes.data?.data || []);
-        setAssignedLearningPlans(learningPlansRes.data?.data || []);
+        const plansResponse = await hr2.learning.learningPlans.getAvailable(userId);
+        if (plansResponse.data && plansResponse.data.success) {
+          setAvailableLearningPlans(plansResponse.data.data || []);
+        }
+
+        // Reload assigned learning plans
+        const assignedPlansResponse = await hr2.learning.learningPlans.getByUser(userId);
+        if (assignedPlansResponse.data && assignedPlansResponse.data.success) {
+          setAssignedLearningPlans(assignedPlansResponse.data.data || []);
+        }
+      } else {
+        toast.error(response.data?.message || 'Failed to create learning plan');
       }
     } catch (error) {
       console.error('Failed to create learning plan:', error);
@@ -274,19 +311,14 @@ function LearningManagementSystem() {
 
   const handleUpdateLearningPlan = async () => {
     if (!planForm.title || planForm.courses.length === 0) {
-      toast.error('Please fill in all required fields');
+      toast.error('Please fill in the plan title and select at least one course');
       return;
     }
 
     try {
-      const response = await hr2.learning.learningPlans.update(selectedPlan.id, {
-        title: planForm.title,
-        description: planForm.description,
-        courses: planForm.courses,
-        estimated_hours: planForm.estimated_hours
-      });
+      const response = await hr2.learning.learningPlans.update(selectedPlan.id, planForm);
 
-      if (response.data) {
+      if (response.data && response.data.success) {
         toast.success('Learning plan updated successfully');
         setShowEditPlan(false);
         setSelectedPlan(null);
@@ -296,10 +328,21 @@ function LearningManagementSystem() {
           courses: [],
           estimated_hours: ''
         });
-        // Reload data
+
+        // Reload learning plans
         const userId = getCurrentUserId();
-        const response2 = await hr2.learning.learningPlans.getByUser(userId);
-        setAssignedLearningPlans(response2.data?.data || []);
+        const plansResponse = await hr2.learning.learningPlans.getAvailable(userId);
+        if (plansResponse.data && plansResponse.data.success) {
+          setAvailableLearningPlans(plansResponse.data.data || []);
+        }
+
+        // Reload assigned learning plans
+        const assignedPlansResponse = await hr2.learning.learningPlans.getByUser(userId);
+        if (assignedPlansResponse.data && assignedPlansResponse.data.success) {
+          setAssignedLearningPlans(assignedPlansResponse.data.data || []);
+        }
+      } else {
+        toast.error(response.data?.message || 'Failed to update learning plan');
       }
     } catch (error) {
       console.error('Failed to update learning plan:', error);
@@ -323,14 +366,24 @@ function LearningManagementSystem() {
 
     try {
       const response = await hr2.learning.learningPlans.delete(planId);
-      if (response.data?.success) {
+
+      if (response.data && response.data.success) {
         toast.success('Learning plan deleted successfully');
+
         // Reload learning plans
         const userId = getCurrentUserId();
-        const response2 = await hr2.learning.learningPlans.getByUser(userId);
-        setAssignedLearningPlans(response2.data?.data || []);
+        const plansResponse = await hr2.learning.learningPlans.getAvailable(userId);
+        if (plansResponse.data && plansResponse.data.success) {
+          setAvailableLearningPlans(plansResponse.data.data || []);
+        }
+
+        // Reload assigned learning plans
+        const assignedPlansResponse = await hr2.learning.learningPlans.getByUser(userId);
+        if (assignedPlansResponse.data && assignedPlansResponse.data.success) {
+          setAssignedLearningPlans(assignedPlansResponse.data.data || []);
+        }
       } else {
-        toast.error('Failed to delete learning plan');
+        toast.error(response.data?.message || 'Failed to delete learning plan');
       }
     } catch (error) {
       console.error('Failed to delete learning plan:', error);
@@ -340,24 +393,26 @@ function LearningManagementSystem() {
 
   const handleEnrollInCourse = async (courseId) => {
     try {
+      const userId = getCurrentUserId();
       const response = await hr2.learning.enrollment.enroll({
         course_id: courseId,
-        user_id: getCurrentUserId(),
+        user_id: userId,
         source: 'direct'
       });
 
       if (response.data) {
-        toast.success('Successfully enrolled in course');
+        toast.success('You have been successfully enrolled in the course');
 
-        // Reload data
-        const userId = getCurrentUserId();
+        // Trigger refresh in other components
+        localStorage.setItem('hr2_course_catalog_refresh', Date.now().toString());
+
+        // Reload course catalog and related data to reflect enrollment
         const [courseCatalogRes, progressRes, enrolledCoursesRes] = await Promise.all([
-          hr2.learning.courses.getAll(), // Use direct courses endpoint
+          hr2.learning.courses.getAll(),
           hr2.learning.dashboard.getLearningProgress(userId),
           hr2.learning.progress.getByUser(userId)
         ]);
 
-        // Process course catalog to add enrollment status
         const processedCourses = (courseCatalogRes.data?.data || []).map(course => ({
           ...course,
           isEnrolled: course.enrolled_users?.includes(userId) || false
@@ -371,10 +426,65 @@ function LearningManagementSystem() {
         });
         setLearningProgress(progressRes.data?.data?.recentActivity || []);
         setEnrolledCourses(enrolledCoursesRes.data?.data || []);
+      } else {
+        // Handle specific error cases
+        if (response.status === 409) {
+          toast.info('You are already enrolled in this course');
+          // Still refresh data to ensure UI is in sync
+          localStorage.setItem('hr2_course_catalog_refresh', Date.now().toString());
+          const [courseCatalogRes, progressRes, enrolledCoursesRes] = await Promise.all([
+            hr2.learning.courses.getAll(),
+            hr2.learning.dashboard.getLearningProgress(userId),
+            hr2.learning.progress.getByUser(userId)
+          ]);
+
+          const processedCourses = (courseCatalogRes.data?.data || []).map(course => ({
+            ...course,
+            isEnrolled: course.enrolled_users?.includes(userId) || false
+          }));
+          setCourseCatalog(processedCourses);
+          setProgressStats({
+            totalCourses: progressRes.data?.data?.totalCourses || 0,
+            completedCourses: progressRes.data?.data?.completedCourses || 0,
+            inProgressCourses: progressRes.data?.data?.inProgressCourses || 0,
+            overallProgress: progressRes.data?.data?.overallProgress || 0
+          });
+          setLearningProgress(progressRes.data?.data?.recentActivity || []);
+          setEnrolledCourses(enrolledCoursesRes.data?.data || []);
+        } else {
+          toast.error(response.data?.message || 'Failed to enroll in course');
+        }
       }
     } catch (error) {
       console.error('Failed to enroll in course:', error);
-      toast.error('Failed to enroll in course');
+      // Handle HTTP error responses
+      if (error.response?.status === 409) {
+        toast.info('You are already enrolled in this course');
+        // Refresh data to ensure UI is in sync
+        const userId = getCurrentUserId();
+        localStorage.setItem('hr2_course_catalog_refresh', Date.now().toString());
+        const [courseCatalogRes, progressRes, enrolledCoursesRes] = await Promise.all([
+          hr2.learning.courses.getAll(),
+          hr2.learning.dashboard.getLearningProgress(userId),
+          hr2.learning.progress.getByUser(userId)
+        ]);
+
+        const processedCourses = (courseCatalogRes.data?.data || []).map(course => ({
+          ...course,
+          isEnrolled: course.enrolled_users?.includes(userId) || false
+        }));
+        setCourseCatalog(processedCourses);
+        setProgressStats({
+          totalCourses: progressRes.data?.data?.totalCourses || 0,
+          completedCourses: progressRes.data?.data?.completedCourses || 0,
+          inProgressCourses: progressRes.data?.data?.inProgressCourses || 0,
+          overallProgress: progressRes.data?.data?.overallProgress || 0
+        });
+        setLearningProgress(progressRes.data?.data?.recentActivity || []);
+        setEnrolledCourses(enrolledCoursesRes.data?.data || []);
+      } else {
+        toast.error('Unable to enroll in course. Please try again');
+      }
     }
   };
 
@@ -400,7 +510,6 @@ function LearningManagementSystem() {
   };
 
   const handleViewProgress = (progressItem) => {
-    // Find the course details from the catalog
     const courseDetails = courseCatalog.find(course => course.id === progressItem.course_id);
     const progressWithLinks = {
       ...progressItem,
@@ -413,32 +522,14 @@ function LearningManagementSystem() {
 
   const handleUpdateCourse = async () => {
     if (!courseForm.title || !courseForm.description || !courseForm.category) {
-      toast.error('Please fill in required fields (Title, Description, Category)');
+      toast.error('Please fill in all required fields');
       return;
     }
 
     try {
-      const courseData = {
-        title: courseForm.title,
-        description: courseForm.description,
-        category: courseForm.category,
-        level: courseForm.level,
-        schedule_date: courseForm.schedule_date,
-        instructor: courseForm.instructor,
-        objectives: courseForm.objectives
-      };
+      const response = await hr2.learning.courses.update(selectedCourse.id, courseForm);
 
-      // Only add URL fields if they have values
-      if (courseForm.meeting_link.trim()) {
-        courseData.meeting_link = courseForm.meeting_link.trim();
-      }
-      if (courseForm.assessment_link.trim()) {
-        courseData.assessment_link = courseForm.assessment_link.trim();
-      }
-
-      const response = await hr2.learning.courses.update(selectedCourse.id, courseData);
-
-      if (response.data) {
+      if (response.data && response.data.success) {
         toast.success('Course updated successfully');
         setShowEditCourse(false);
         setSelectedCourse(null);
@@ -453,9 +544,19 @@ function LearningManagementSystem() {
           meeting_link: '',
           assessment_link: ''
         });
-        // Reload data using the courses endpoint instead of dashboard
+
+        // Reload course catalog
         const coursesResponse = await hr2.learning.courses.getAll();
-        setCourseCatalog(coursesResponse.data?.data || []);
+        if (coursesResponse.data && coursesResponse.data.success) {
+          const userId = getCurrentUserId();
+          const processedCourses = (coursesResponse.data.data || []).map(course => ({
+            ...course,
+            isEnrolled: course.enrolled_users?.includes(userId) || false
+          }));
+          setCourseCatalog(processedCourses);
+        }
+      } else {
+        toast.error(response.data?.message || 'Failed to update course');
       }
     } catch (error) {
       console.error('Failed to update course:', error);
@@ -467,13 +568,23 @@ function LearningManagementSystem() {
     if (!confirm('Are you sure you want to delete this course?')) return;
 
     try {
-      const response = await hr2.learning.courses.delete(courseId);
+      const response = await hr2.courses.delete(courseId);
 
-      if (response.data) {
+      if (response.data && response.data.success) {
         toast.success('Course deleted successfully');
-        // Reload data using the courses endpoint instead of dashboard
-        const coursesResponse = await hr2.learning.courses.getAll();
-        setCourseCatalog(coursesResponse.data?.data || []);
+
+        // Reload course catalog
+        const coursesResponse = await hr2.courses.getAll();
+        if (coursesResponse.data && coursesResponse.data.success) {
+          const userId = getCurrentUserId();
+          const processedCourses = (coursesResponse.data.data || []).map(course => ({
+            ...course,
+            isEnrolled: course.enrolled_users?.includes(userId) || false
+          }));
+          setCourseCatalog(processedCourses);
+        }
+      } else {
+        toast.error(response.data?.message || 'Failed to delete course');
       }
     } catch (error) {
       console.error('Failed to delete course:', error);
@@ -481,16 +592,13 @@ function LearningManagementSystem() {
     }
   };
 
-  // Employee-specific functions
   const handleUpdateProgress = async (courseId, newProgress) => {
     try {
-      // First, find the progress record for this course and user
       const userId = getCurrentUserId();
       const progressRes = await hr2.learning.progress.getByUser(userId);
       const progressRecord = progressRes.data?.data?.find(p => p.course_id === courseId);
 
       if (!progressRecord) {
-        // Create new progress record if it doesn't exist
         const createResponse = await hr2.learning.progress.create({
           course_id: courseId,
           user_id: userId,
@@ -498,20 +606,18 @@ function LearningManagementSystem() {
         });
 
         if (createResponse.data) {
-          toast.success('Progress started successfully');
+          toast.success('Learning progress has been initiated');
         }
       } else {
-        // Update existing progress record
         const response = await hr2.learning.progress.update(progressRecord.id, {
           progress: newProgress
         });
 
         if (response.data) {
-          toast.success('Progress updated successfully');
+          toast.success('Learning progress has been updated');
         }
       }
 
-      // Reload progress data
       const updatedProgressRes = await hr2.learning.dashboard.getLearningProgress(userId);
       const enrolledCoursesRes = await hr2.learning.progress.getByUser(userId);
       setProgressStats({
@@ -524,29 +630,27 @@ function LearningManagementSystem() {
       setEnrolledCourses(enrolledCoursesRes.data?.data || []);
     } catch (error) {
       console.error('Failed to update progress:', error);
-      toast.error('Failed to update progress');
+      toast.error('Unable to update learning progress. Please try again');
     }
   };
 
   const handleMarkCourseCompleted = async (courseId) => {
     try {
-      // First, find the progress record for this course and user
       const userId = getCurrentUserId();
       const progressRes = await hr2.learning.progress.getByUser(userId);
       const progressRecord = progressRes.data?.data?.find(p => p.course_id === courseId);
 
       if (!progressRecord) {
-        toast.error('No progress record found for this course');
+        toast.error('No learning record found for this course');
         return;
       }
 
       const response = await hr2.learning.progress.complete(progressRecord.id, {
-        score: 85 // Default score, could be made configurable
+        score: 85
       });
 
       if (response.data) {
-        toast.success('Course marked as completed!');
-        // Reload progress data
+        toast.success('Congratulations! Course has been marked as completed');
         const updatedProgressRes = await hr2.learning.dashboard.getLearningProgress(userId);
         const enrolledCoursesRes = await hr2.learning.progress.getByUser(userId);
         setProgressStats({
@@ -560,7 +664,7 @@ function LearningManagementSystem() {
       }
     } catch (error) {
       console.error('Failed to mark course as completed:', error);
-      toast.error('Failed to mark course as completed');
+      toast.error('Unable to mark course as completed. Please try again');
     }
   };
 
@@ -574,15 +678,13 @@ function LearningManagementSystem() {
       });
 
       if (response.data) {
-        toast.success('Successfully unenrolled from course');
-        // Reload data
+        toast.success('You have been successfully unenrolled from the course');
         const userId = getCurrentUserId();
         const [courseCatalogRes, progressRes, enrolledCoursesRes] = await Promise.all([
           hr2.learning.courses.getAll(),
           hr2.learning.dashboard.getLearningProgress(userId),
           hr2.learning.progress.getByUser(userId)
         ]);
-        // Process course catalog to add enrollment status
         const processedCourses = (courseCatalogRes.data?.data || []).map(course => ({
           ...course,
           isEnrolled: course.enrolled_users?.includes(userId) || false
@@ -599,72 +701,65 @@ function LearningManagementSystem() {
       }
     } catch (error) {
       console.error('Failed to unenroll from course:', error);
-      toast.error('Failed to unenroll from course');
+      toast.error('Unable to unenroll from course. Please try again');
     }
   };
 
   const handleStartCourse = async (courseId) => {
     try {
-      // First enroll if not already enrolled
       const enrollResponse = await hr2.learning.enrollment.enroll({
         course_id: courseId,
         user_id: getCurrentUserId()
       });
 
       if (enrollResponse.data) {
-        // Then update progress to indicate started
-        await handleUpdateProgress(courseId, 5); // Start with 5% progress
-        toast.success('Course started! Happy learning!');
+        await handleUpdateProgress(courseId, 5);
+        toast.success('Welcome! Your learning journey has begun');
       }
     } catch (error) {
       console.error('Failed to start course:', error);
-      toast.error('Failed to start course');
+      if (error.response?.status === 409) {
+        // User is already enrolled, just update progress
+        await handleUpdateProgress(courseId, 5);
+        toast.success('Welcome! Your learning journey has begun');
+      } else {
+        toast.error('Unable to start course. Please try again');
+      }
     }
   };
 
   const handleRequestPlanAssignment = async (planId) => {
     try {
-      // For now, simulate the request since the backend endpoint doesn't exist yet
-      // TODO: Implement actual API call when backend is ready
-      console.log('Requesting assignment to plan:', planId);
+      const userId = getCurrentUserId();
+      const response = await hr2.learning.learningPlans.enroll(planId, userId);
 
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (response.data && response.data.success) {
+        toast.success('Assignment request submitted');
 
-      toast.success('Assignment request submitted! Your manager will review it.');
+        // Reload assigned learning plans
+        const assignedPlansResponse = await hr2.learning.learningPlans.getByUser(userId);
+        if (assignedPlansResponse.data && assignedPlansResponse.data.success) {
+          setAssignedLearningPlans(assignedPlansResponse.data.data || []);
+        }
+      } else {
+        toast.error(response.data?.message || 'Failed to request assignment');
+      }
     } catch (error) {
-      console.error('Failed to request plan assignment:', error);
+      console.error('Failed to request assignment:', error);
       toast.error('Failed to request assignment');
     }
   };
 
   const handleContinueLearningPlan = async (planId) => {
     try {
-      // Find the next course in the plan that needs to be worked on
-      const plan = assignedLearningPlans.find(p => p.id === planId);
-      if (!plan) return;
-
-      // Get user's progress on courses in this plan
       const userId = getCurrentUserId();
-      const progressRes = await hr2.learning.dashboard.getLearningProgress(userId);
-      const userProgress = progressRes.data?.recentActivity || [];
-
-      // Find the first course in the plan that is not completed
-      for (const courseId of plan.courses) {
-        const courseProgress = userProgress.find(p => p.course_id === courseId);
-        if (!courseProgress || courseProgress.status !== 'completed') {
-          // Start or continue this course
-          if (!courseProgress) {
-            await handleStartCourse(courseId);
-          } else {
-            toast.info(`Continue working on: ${courseProgress.courseTitle}`);
-            // Could navigate to course content here
-          }
-          return;
-        }
+      // Just reload assigned learning plans
+      const assignedPlansResponse = await hr2.learning.learningPlans.getByUser(userId);
+      if (assignedPlansResponse.data && assignedPlansResponse.data.success) {
+        setAssignedLearningPlans(assignedPlansResponse.data.data || []);
+      } else {
+        toast.error('Failed to continue learning plan');
       }
-
-      toast.success('All courses in this plan are completed!');
     } catch (error) {
       console.error('Failed to continue learning plan:', error);
       toast.error('Failed to continue learning plan');
@@ -673,51 +768,32 @@ function LearningManagementSystem() {
 
   const handleEnrollInLearningPlan = async (planId) => {
     try {
-      const userId = parseInt(getCurrentUserId());
+      const userId = getCurrentUserId();
       const response = await hr2.learning.learningPlans.enroll(planId, userId);
 
-      if (response.data) {
-        toast.success('Successfully enrolled in learning plan! All courses have been added to your learning progress.');
+      if (response.data && response.data.success) {
+        toast.success('Successfully enrolled in learning plan');
 
-        // Reload data to reflect changes
-        const [availablePlansRes, learningPlansRes, progressRes, enrolledCoursesRes, courseCatalogRes] = await Promise.all([
+        // Reload both available and assigned learning plans
+        const [availablePlansResponse, assignedPlansResponse] = await Promise.all([
           hr2.learning.learningPlans.getAvailable(userId),
-          hr2.learning.learningPlans.getByUser(userId),
-          hr2.learning.dashboard.getLearningProgress(userId),
-          hr2.learning.progress.getByUser(userId),
-          hr2.learning.courses.getAll()
+          hr2.learning.learningPlans.getByUser(userId)
         ]);
+        if (availablePlansResponse.data && availablePlansResponse.data.success) {
+          setAvailableLearningPlans(availablePlansResponse.data.data || []);
+        }
+        if (assignedPlansResponse.data && assignedPlansResponse.data.success) {
+          setAssignedLearningPlans(assignedPlansResponse.data.data || []);
+        }
 
-        setAvailableLearningPlans(availablePlansRes.data?.data || []);
-        setAssignedLearningPlans(learningPlansRes.data?.data || []);
-        setProgressStats({
-          totalCourses: progressRes.data?.data?.totalCourses || 0,
-          completedCourses: progressRes.data?.data?.completedCourses || 0,
-          inProgressCourses: progressRes.data?.data?.inProgressCourses || 0,
-          overallProgress: progressRes.data?.data?.overallProgress || 0
-        });
-        setLearningProgress(progressRes.data?.data?.recentActivity || []);
-        setEnrolledCourses(enrolledCoursesRes.data?.data || []);
-
-        // Update course catalog with enrollment status
-        const processedCourses = (courseCatalogRes.data?.data || []).map(course => ({
-          ...course,
-          isEnrolled: course.enrolled_users?.includes(userId) || false
-        }));
-        setCourseCatalog(processedCourses);
+        // Enroll in missing courses
+        await enrollInMissingCourses(response.data.data, userId);
+      } else {
+        toast.error(response.data?.message || 'Failed to enroll in learning plan');
       }
     } catch (error) {
-      console.log('Error in handleEnrollInLearningPlan:', error);
-      console.log('Error response:', error.response);
-      console.log('Error status:', error.response?.status);
-
-      // Check for 409 conflict (already enrolled)
-      if (error.response?.status === 409) {
-        toast.info('You are already enrolled in this learning plan.');
-      } else {
-        console.error('Failed to enroll in learning plan:', error);
-        toast.error('Failed to enroll in learning plan');
-      }
+      console.error('Failed to enroll in learning plan:', error);
+      toast.error('Failed to enroll in learning plan');
     }
   };
 
@@ -726,35 +802,22 @@ function LearningManagementSystem() {
       const userId = getCurrentUserId();
       const response = await hr2.learning.learningPlans.unenroll(planId, userId);
 
-      if (response.data) {
-        toast.success('Successfully unenrolled from learning plan.');
+      if (response.data && response.data.success) {
+        toast.success('Successfully unenrolled from learning plan');
 
-        // Reload data to reflect changes
-        const [availablePlansRes, learningPlansRes, progressRes, enrolledCoursesRes, courseCatalogRes] = await Promise.all([
+        // Reload both available and assigned learning plans
+        const [availablePlansResponse, assignedPlansResponse] = await Promise.all([
           hr2.learning.learningPlans.getAvailable(userId),
-          hr2.learning.learningPlans.getByUser(userId),
-          hr2.learning.dashboard.getLearningProgress(userId),
-          hr2.learning.progress.getByUser(userId),
-          hr2.learning.courses.getAll()
+          hr2.learning.learningPlans.getByUser(userId)
         ]);
-
-        setAvailableLearningPlans(availablePlansRes.data?.data || []);
-        setAssignedLearningPlans(learningPlansRes.data?.data || []);
-        setProgressStats({
-          totalCourses: progressRes.data?.data?.totalCourses || 0,
-          completedCourses: progressRes.data?.data?.completedCourses || 0,
-          inProgressCourses: progressRes.data?.data?.inProgressCourses || 0,
-          overallProgress: progressRes.data?.data?.overallProgress || 0
-        });
-        setLearningProgress(progressRes.data?.data?.recentActivity || []);
-        setEnrolledCourses(enrolledCoursesRes.data?.data || []);
-
-        // Update course catalog with enrollment status
-        const processedCourses = (courseCatalogRes.data?.data || []).map(course => ({
-          ...course,
-          isEnrolled: course.enrolled_users?.includes(userId) || false
-        }));
-        setCourseCatalog(processedCourses);
+        if (availablePlansResponse.data && availablePlansResponse.data.success) {
+          setAvailableLearningPlans(availablePlansResponse.data.data || []);
+        }
+        if (assignedPlansResponse.data && assignedPlansResponse.data.success) {
+          setAssignedLearningPlans(assignedPlansResponse.data.data || []);
+        }
+      } else {
+        toast.error(response.data?.message || 'Failed to unenroll from learning plan');
       }
     } catch (error) {
       console.error('Failed to unenroll from learning plan:', error);
@@ -764,84 +827,168 @@ function LearningManagementSystem() {
 
   const enrollInMissingCourses = async (plan, userId) => {
     try {
-      console.log('Enrolling in missing courses for plan:', plan);
-      console.log('Current learning progress:', learningProgress);
+      const planDetails = await hr2.learning.learningPlans.getById(plan.id);
+      if (planDetails.data && planDetails.data.success) {
+        const courseIds = planDetails.data.data.courses || [];
 
-      const userProgress = learningProgress || [];
-      const missingCourses = [];
+        for (const courseId of courseIds) {
+          // Check if already enrolled
+          const existingEnrollment = enrolledCourses.find(ec => ec.course_id === courseId);
+          if (!existingEnrollment) {
+            await hr2.enrolledCourses.create({
+              course_id: courseId,
+              employee_id: userId
+            });
+          }
+        }
 
-      // Ensure plan.courses is an array
-      const planCourses = Array.isArray(plan.courses) ? plan.courses : [];
-      console.log('Plan courses as array:', planCourses);
-
-      // Find courses in the plan that user is not enrolled in
-      for (const courseId of planCourses) {
-        const isEnrolled = userProgress.some(p => p.course_id === courseId);
-        console.log(`Course ${courseId}: enrolled = ${isEnrolled}`);
-        if (!isEnrolled) {
-          missingCourses.push(courseId);
+        // Reload enrolled courses
+        const enrolledResponse = await hr2.enrolledCourses.getByUser(userId);
+        if (enrolledResponse.data && enrolledResponse.data.success) {
+          setEnrolledCourses(enrolledResponse.data.data || []);
         }
       }
-
-      console.log('Missing courses:', missingCourses);
-
-      if (missingCourses.length === 0) {
-        toast.info('You are already enrolled in all courses in this learning plan.');
-        return;
-      }
-
-      // Enroll in missing courses
-      for (const courseId of missingCourses) {
-        await hr2.learning.enrollment.enroll({
-          course_id: courseId,
-          user_id: userId,
-          source: 'learning_plan'
-        });
-      }
-
-      toast.success(`Successfully enrolled in ${missingCourses.length} missing course(s) from the learning plan!`);
-
-      // Reload data
-      const [courseCatalogRes, progressRes, enrolledCoursesRes] = await Promise.all([
-        hr2.learning.courses.getAll(),
-        hr2.learning.dashboard.getLearningProgress(userId),
-        hr2.learning.progress.getByUser(userId)
-      ]);
-
-      const processedCourses = (courseCatalogRes.data?.data || []).map(course => ({
-        ...course,
-        isEnrolled: course.enrolled_users?.includes(userId) || false
-      }));
-
-      setCourseCatalog(processedCourses);
-      setProgressStats({
-        totalCourses: progressRes.data?.data?.totalCourses || 0,
-        completedCourses: progressRes.data?.data?.completedCourses || 0,
-        inProgressCourses: progressRes.data?.data?.inProgressCourses || 0,
-        overallProgress: progressRes.data?.data?.overallProgress || 0
-      });
-      setLearningProgress(progressRes.data?.data?.recentActivity || []);
-      setEnrolledCourses(enrolledCoursesRes.data?.data || []);
-
     } catch (error) {
       console.error('Failed to enroll in missing courses:', error);
-      toast.error('Failed to enroll in missing courses');
     }
   };
 
-  // Loading state
+  const handleMarkCourseAsDone = async (courseId) => {
+    try {
+      const updatedList = [...completedCoursesList, courseId];
+      setCompletedCoursesList(updatedList);
+      localStorage.setItem('completedCourses', JSON.stringify(updatedList));
+
+      toast.success('Course status has been updated to completed');
+      const coursesResponse = await hr2.learning.courses.getAll();
+      const userId = getCurrentUserId();
+      const processedCourses = (coursesResponse.data?.data || []).map(course => ({
+        ...course,
+        isEnrolled: course.enrolled_users?.includes(userId) || false
+      }));
+      setCourseCatalog(processedCourses);
+    } catch (error) {
+      console.error('Failed to mark course as done:', error);
+      toast.error('Unable to update course status. Please try again');
+    }
+  };
+
+  const handleUndoMarkAsDone = async (courseId) => {
+    try {
+      const updatedList = completedCoursesList.filter(id => id !== courseId);
+      setCompletedCoursesList(updatedList);
+      localStorage.setItem('completedCourses', JSON.stringify(updatedList));
+
+      toast.success('Course status has been updated');
+      const coursesResponse = await hr2.learning.courses.getAll();
+      const userId = getCurrentUserId();
+      const processedCourses = (coursesResponse.data?.data || []).map(course => ({
+        ...course,
+        isEnrolled: course.enrolled_users?.includes(userId) || false
+      }));
+      setCourseCatalog(processedCourses);
+    } catch (error) {
+      console.error('Failed to undo mark as done:', error);
+      toast.error('Unable to update course status. Please try again');
+    }
+  };
+
+  const handleViewEnrolledEmployees = async (course) => {
+    try {
+      const response = await hr2.enrolledCourses.getByCourse(course.id);
+      if (response.data && response.data.success) {
+        setEnrolledEmployees(response.data.data || []);
+        setSelectedCourseForEmployees(course);
+        setShowEnrolledEmployees(true);
+      } else {
+        toast.error('Failed to load enrolled employees');
+      }
+    } catch (error) {
+      console.error('Failed to load enrolled employees:', error);
+      toast.error('Failed to load enrolled employees');
+    }
+  };
+
+  const handleUpdateGrade = async (progressId, newGrade) => {
+    try {
+      const response = await hr2.learning.progress.update(progressId, { grade: newGrade });
+
+      if (response.data) {
+        setEnrolledEmployees(prev => prev.map(emp =>
+          emp.id === progressId ? { ...emp, grade: newGrade } : emp
+        ));
+        toast.success('Grade has been updated successfully');
+      }
+    } catch (error) {
+      console.error('Failed to update grade:', error);
+      toast.error('Unable to update grade. Please try again');
+    }
+  };
+
+  const handleUploadCertificate = async (progressId, file) => {
+    try {
+      const formData = new FormData();
+      formData.append('certificate', file);
+
+      const response = await hr2.learning.progress.update(progressId, { certificate_uploaded: true });
+
+      if (response.data) {
+        const mockCertificateUrl = `certificate_${progressId}.pdf`;
+        setEnrolledEmployees(prev => prev.map(emp =>
+          emp.id === progressId ? { ...emp, certificate_url: mockCertificateUrl } : emp
+        ));
+        toast.success('Certificate has been uploaded successfully');
+      }
+    } catch (error) {
+      console.error('Failed to upload certificate:', error);
+      toast.error('Unable to upload certificate. Please try again');
+    }
+  };
+
+  const exportToCSV = (data, filename) => {
+    if (!data || data.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+
+    const headers = ['Employee ID', 'Name', 'Email', 'Enrollment Date', 'Status', 'Progress', 'Grade'];
+    const csvContent = [
+      headers.join(','),
+      ...data.map(row => [
+        row.employee_id,
+        `"${row.name}"`,
+        row.email,
+        row.enrollment_date,
+        row.status,
+        `${row.progress}%`,
+        row.grade
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.success('Enrollment data has been exported successfully');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50/30 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading Learning Management...</p>
+          <p className="mt-4 text-muted-foreground">Loading Learning Catalog...</p>
         </div>
       </div>
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50/30 flex items-center justify-center">
@@ -851,7 +998,7 @@ function LearningManagementSystem() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Error Loading Learning Management</h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Error Loading Learning Catalog</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <Button onClick={() => window.location.reload()}>
             Try Again
@@ -863,18 +1010,16 @@ function LearningManagementSystem() {
 
   return (
     <div className="min-h-screen bg-gray-50/30">
-      {/* Compact Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="container flex h-12 items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <GraduationCap className="h-5 w-5 text-primary" />
+            <LibraryBig className="h-5 w-5 text-primary" />
             <h1 className="text-lg font-semibold">Learning Management</h1>
           </div>
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-6 space-y-6">
-        {/* Course Catalog */}
         <Card>
           <div className="p-4 border-b">
             <div className="flex items-center gap-2">
@@ -904,15 +1049,13 @@ function LearningManagementSystem() {
             </div>
           </div>
           <CardContent className="p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
               {(courseCatalog || []).filter(course => {
-                // Search filter
                 const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   course.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   course.category.toLowerCase().includes(searchTerm.toLowerCase());
 
-                // For employees, hide enrolled courses from catalog
-                const isEnrolled = course.isEnrolled || learningProgress.some(p => p.course_id === course.id);
+                const isEnrolled = course.isEnrolled || false;
                 const shouldShow = isHR2Admin || isTrainer || !isEnrolled;
 
                 return matchesSearch && shouldShow;
@@ -1012,30 +1155,25 @@ function LearningManagementSystem() {
               })}
             </div>
             {((courseCatalog || []).filter(course => {
-              // Search filter
               const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 course.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 course.category.toLowerCase().includes(searchTerm.toLowerCase());
 
-              // For employees, hide enrolled courses from catalog
-              const isEnrolled = course.isEnrolled || learningProgress.some(p => p.course_id === course.id);
+              const isEnrolled = course.isEnrolled || false;
               const shouldShow = isHR2Admin || isTrainer || !isEnrolled;
 
               return matchesSearch && shouldShow;
             }).length === 0) && (
-              <div className="text-center py-8 text-gray-500">
-                <LibraryBig className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">No courses available</p>
-                <p className="text-xs">Courses will appear here when created by administrators</p>
-              </div>
-            )}
+                <div className="text-center py-8 text-gray-500">
+                  <LibraryBig className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">No courses available</p>
+                  <p className="text-xs">Courses will appear here when created by administrators</p>
+                </div>
+              )}
           </CardContent>
         </Card>
 
-        {/* Learning Dashboard */}
         <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
-
-          {/* Learning Plans Card */}
           <Card>
             <div className="p-4 border-b">
               <div className="flex items-center gap-2">
@@ -1054,61 +1192,87 @@ function LearningManagementSystem() {
               </div>
             </div>
             <CardContent className="p-4">
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-80 overflow-y-auto">
                 {availableLearningPlans.map((plan) => {
                   const planProgress = calculateLearningPlanProgress(plan.id);
                   return (
-                    <div key={plan.id} className="border rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-medium text-sm">{plan.title}</h3>
-                        <Badge variant="secondary" className="text-xs">
-                          {plan.courses?.length || 0} courses
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mb-3">{plan.description}</p>
-                      <div className="flex items-center justify-between">
-                        {plan.estimated_hours && (
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            <span>Estimated: {plan.estimated_hours} hours</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 ml-auto">
-                          {!(isHR2Admin || isTrainer) && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-6 px-2 text-xs"
-                              onClick={() => handleEnrollInLearningPlan(plan.id)}
-                            >
-                              <BookOpen className="w-3 h-3 mr-1" />
-                              Apply
-                            </Button>
-                          )}
-                          {(isHR2Admin || isTrainer) && (
-                            <>
+                    <div key={plan.id} className="border rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div>
+                          <h3 className="font-medium text-sm">{plan.title}</h3>
+                          <p className="text-xs text-muted-foreground mt-1">{plan.description}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isHR2Admin || isTrainer ? (
+                            <div className="flex gap-1">
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-7 px-2 text-xs"
                                 onClick={() => handleEditLearningPlan(plan)}
                               >
-                                <Edit className="w-3 h-3 mr-1" />
-                                Edit
+                                <Edit className="w-3 h-3" />
                               </Button>
                               <Button
                                 size="sm"
                                 variant="destructive"
-                                className="h-7 px-2 text-xs"
                                 onClick={() => handleDeleteLearningPlan(plan.id)}
                               >
-                                <Trash2 className="w-3 h-3 mr-1" />
-                                Delete
+                                <Trash2 className="w-3 h-3" />
                               </Button>
-                            </>
+                            </div>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">
+                              {planProgress.completed}/{planProgress.total} courses
+                            </Badge>
                           )}
                         </div>
                       </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span>Progress</span>
+                          <span>{planProgress.percentage}%</span>
+                        </div>
+                        <Progress value={planProgress.percentage} className="h-2" />
+
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{plan.estimated_hours ? `${plan.estimated_hours} hours` : 'Duration TBD'}</span>
+                          <span>{plan.courses?.length || 0} courses</span>
+                        </div>
+                      </div>
+
+                      {isEmployee && (
+                        <div className="flex gap-2 mt-3 pt-3 border-t">
+                          {assignedLearningPlans.some(ap => ap.id === plan.id) ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1"
+                              onClick={() => handleContinueLearningPlan(plan.id)}
+                            >
+                              <Play className="w-3 h-3 mr-1" />
+                              Continue
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => handleEnrollInLearningPlan(plan.id)}
+                            >
+                              <BookOpen className="w-3 h-3 mr-1" />
+                              Enroll
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRequestPlanAssignment(plan.id)}
+                          >
+                            <Target className="w-3 h-3 mr-1" />
+                            Request
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1122,174 +1286,8 @@ function LearningManagementSystem() {
               </div>
             </CardContent>
           </Card>
-
         </div>
 
-        {/* Learning Progress */}
-        <Card>
-          <div className="p-4 border-b">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-semibold">Learning Progress</h2>
-            </div>
-          </div>
-          <CardContent className="p-4">
-
-            {/* Overall Progress Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-1 text-green-600 mb-1">
-                  <CheckCircle className="h-4 w-4" />
-                  <span className="text-2xl font-bold">{completedCourses}</span>
-                </div>
-                <span className="text-sm text-muted-foreground">Completed</span>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-1 text-yellow-600 mb-1">
-                  <Clock className="h-4 w-4" />
-                  <span className="text-2xl font-bold">{progressStats.inProgressCourses || 0}</span>
-                </div>
-                <span className="text-sm text-muted-foreground">In Progress</span>
-              </div>
-              <div className="text-center">
-                <div className="flex items-center justify-center gap-1 text-blue-600 mb-1">
-                  <Award className="h-4 w-4" />
-                  <span className="text-2xl font-bold">{overallProgress}%</span>
-                </div>
-                <span className="text-sm text-muted-foreground">Overall</span>
-              </div>
-            </div>
-
-            {/* Tabs for different views */}
-            <Tabs defaultValue="courses" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="courses">Enrolled Courses</TabsTrigger>
-                <TabsTrigger value="plans">Assigned Learning Plans</TabsTrigger>
-              </TabsList>
-
-              {/* Enrolled Courses Tab */}
-              <TabsContent value="courses" className="mt-4">
-                <div className="space-y-2">
-                  {enrolledCourses.length > 0 ? (
-                    enrolledCourses.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-2 h-2 rounded-full ${item.status === 'completed' ? 'bg-green-500' :
-                              item.status === 'in_progress' ? 'bg-yellow-500' : 'bg-gray-300'
-                            }`} />
-                          <div>
-                            <p className="text-sm font-medium">{item.course_title}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {(() => {
-                                const courseDetails = courseCatalog.find(c => c.title === item.course_title);
-                                const scheduleDate = courseDetails?.schedule_date;
-                                return scheduleDate ?
-                                  `Schedule: ${new Date(scheduleDate).toLocaleDateString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    year: 'numeric'
-                                  })} - ${new Date(scheduleDate).toLocaleTimeString('en-US', {
-                                    hour: 'numeric',
-                                    minute: '2-digit',
-                                    hour12: true
-                                  })}` :
-                                  `Enrolled: ${new Date(item.enrollment_date || item.last_accessed || new Date()).toLocaleDateString()}`;
-                              })()}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={getStatusBadgeVariant(item.status)} className="text-xs">
-                            {item.status.replace('_', ' ')}
-                          </Badge>
-                          <span className="text-sm font-medium">{item.progress}%</span>
-                          <div className="flex gap-1 ml-2">
-                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => handleViewProgress(item)}>
-                              View
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="h-7 px-2 text-xs"
-                              onClick={() => handleUnenrollFromCourse(item.course_id)}
-                            >
-                              Unenroll
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p className="text-sm">No enrolled courses yet</p>
-                      <p className="text-xs">Enroll in courses from the catalog above</p>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-
-              {/* Learning Plans Tab */}
-              <TabsContent value="plans" className="mt-4">
-                <div className="space-y-2">
-                  {assignedLearningPlans.length > 0 ? (
-                    assignedLearningPlans.map((plan) => {
-                      const planProgress = calculateLearningPlanProgress(plan.id);
-                      return (
-                        <div key={plan.id} className="border rounded-lg p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-medium text-sm">{plan.title}</h3>
-                            <Badge variant="secondary" className="text-xs">
-                              {planProgress.completed}/{planProgress.total}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground mb-3">{plan.description}</p>
-                          {plan.estimated_hours && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
-                              <Clock className="h-3 w-3" />
-                              <span>Estimated: {plan.estimated_hours} hours</span>
-                            </div>
-                          )}
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-xs">
-                              <span>Progress</span>
-                              <span>{planProgress.percentage}%</span>
-                            </div>
-                            <Progress value={planProgress.percentage} className="h-2" />
-                          </div>
-                          <div className="flex items-center justify-end mt-3 text-xs text-muted-foreground">
-                            {planProgress.percentage === 100 ? (
-                              <Badge variant="default" className="text-xs">Completed</Badge>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                className="h-6 px-2 text-xs"
-                                onClick={() => handleUnenrollFromLearningPlan(plan.id)}
-                              >
-                                <X className="w-3 h-3 mr-1" />
-                                Cancel Apply
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p className="text-sm">No assigned learning plans</p>
-                      <p className="text-xs">Learning plans will appear here when assigned</p>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
-
-          </CardContent>
-        </Card>
-
-        {/* Create Course Dialog */}
         <Dialog open={showCreateCourse} onOpenChange={setShowCreateCourse}>
           <DialogContent className="max-w-md">
             <DialogHeader>
@@ -1401,7 +1399,6 @@ function LearningManagementSystem() {
           </DialogContent>
         </Dialog>
 
-        {/* Create Learning Plan Dialog */}
         <Dialog open={showCreatePlan} onOpenChange={setShowCreatePlan}>
           <DialogContent className="max-w-md">
             <DialogHeader>
@@ -1446,13 +1443,10 @@ function LearningManagementSystem() {
                         id={`course-${course.id}`}
                         checked={planForm.courses.includes(course.id)}
                         onChange={(e) => {
-                          const checked = e.target.checked;
-                          setPlanForm(prev => ({
-                            ...prev,
-                            courses: checked
-                              ? [...prev.courses, course.id]
-                              : prev.courses.filter(id => id !== course.id)
-                          }));
+                          const newCourses = planForm.courses.includes(course.id)
+                            ? planForm.courses.filter(id => id !== course.id)
+                            : [...planForm.courses, course.id];
+                          setPlanForm(prev => ({ ...prev, courses: newCourses }));
                         }}
                         className="rounded"
                       />
@@ -1478,7 +1472,6 @@ function LearningManagementSystem() {
           </DialogContent>
         </Dialog>
 
-        {/* View Course Dialog */}
         <Dialog open={showViewCourse} onOpenChange={setShowViewCourse}>
           <DialogContent className="max-w-md">
             <DialogHeader>
@@ -1561,106 +1554,6 @@ function LearningManagementSystem() {
           </DialogContent>
         </Dialog>
 
-        {/* View Progress Dialog */}
-        <Dialog open={showViewProgress} onOpenChange={setShowViewProgress}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>{selectedViewProgress?.course_title}</DialogTitle>
-              <DialogDescription>
-                Your learning progress and course resources
-              </DialogDescription>
-            </DialogHeader>
-            {selectedViewProgress && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Badge variant={getStatusBadgeVariant(selectedViewProgress.status)}>
-                    {selectedViewProgress.status.replace('_', ' ')}
-                  </Badge>
-                  <span className="text-sm font-medium">{selectedViewProgress.progress}% Complete</span>
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium">Progress</Label>
-                  <Progress value={selectedViewProgress.progress} className="mt-2" />
-                </div>
-
-                <div className="text-sm text-muted-foreground">
-                  {(() => {
-                    const courseDetails = courseCatalog.find(c => c.title === selectedViewProgress.course_title);
-                    const scheduleDate = courseDetails?.schedule_date;
-                    return (
-                      <p>
-                        {scheduleDate ?
-                          `Schedule: ${new Date(scheduleDate).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })} - ${new Date(scheduleDate).toLocaleTimeString('en-US', {
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true
-                          })}` :
-                          `Enrolled: ${new Date(selectedViewProgress.enrollment_date || selectedViewProgress.last_accessed || new Date()).toLocaleDateString()}`}
-                      </p>
-                    );
-                  })()}
-                  {selectedViewProgress.last_accessed && (
-                    <p>Last accessed: {new Date(selectedViewProgress.last_accessed).toLocaleDateString()}</p>
-                  )}
-                </div>
-
-                {/* Meeting and Assessment Links */}
-                <div className="space-y-2 pt-2 border-t">
-                  <Label className="text-sm font-medium">Course Resources</Label>
-
-                  {selectedViewProgress.meeting_link && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() => window.open(selectedViewProgress.meeting_link, '_blank')}
-                      >
-                        <Play className="w-3 h-3 mr-2" />
-                        Join Meeting
-                      </Button>
-                    </div>
-                  )}
-
-                  {selectedViewProgress.assessment_link && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full justify-start"
-                        onClick={() => window.open(selectedViewProgress.assessment_link, '_blank')}
-                      >
-                        <CheckCircle className="w-3 h-3 mr-2" />
-                        Take Assessment
-                      </Button>
-                    </div>
-                  )}
-
-                  {(!selectedViewProgress.meeting_link && !selectedViewProgress.assessment_link) && (
-                    <p className="text-xs text-muted-foreground">No resources available yet</p>
-                  )}
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2 border-t">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowViewProgress(false)}
-                  >
-                    Close
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Course Dialog */}
         <Dialog open={showEditCourse} onOpenChange={setShowEditCourse}>
           <DialogContent className="max-w-md">
             <DialogHeader>
@@ -1786,7 +1679,6 @@ function LearningManagementSystem() {
           </DialogContent>
         </Dialog>
 
-        {/* Edit Learning Plan Dialog */}
         <Dialog open={showEditPlan} onOpenChange={setShowEditPlan}>
           <DialogContent className="max-w-md">
             <DialogHeader>
@@ -1831,13 +1723,10 @@ function LearningManagementSystem() {
                         id={`edit-course-${course.id}`}
                         checked={planForm.courses.includes(course.id)}
                         onChange={(e) => {
-                          const checked = e.target.checked;
-                          setPlanForm(prev => ({
-                            ...prev,
-                            courses: checked
-                              ? [...prev.courses, course.id]
-                              : prev.courses.filter(id => id !== course.id)
-                          }));
+                          const newCourses = planForm.courses.includes(course.id)
+                            ? planForm.courses.filter(id => id !== course.id)
+                            : [...planForm.courses, course.id];
+                          setPlanForm(prev => ({ ...prev, courses: newCourses }));
                         }}
                         className="rounded"
                       />
@@ -1873,10 +1762,9 @@ function LearningManagementSystem() {
         </Dialog>
 
         <Toaster />
-
       </div>
     </div>
   );
 }
 
-export default LearningManagementSystem;
+export default CourseCatalogAndPlans;

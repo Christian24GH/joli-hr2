@@ -16,7 +16,7 @@ import {
     Lightbulb, Eye, Download, Upload, UserCheck, Briefcase
 } from 'lucide-react';
 import { hr2 } from '@/api/hr2';
-import AuthContext from '../context/AuthProvider';
+import AuthContext from '../../context/AuthProvider';
 
 function CompetencyManagementSystem() {
     const { auth, loading: authLoading } = useContext(AuthContext);

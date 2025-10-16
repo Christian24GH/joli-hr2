@@ -549,6 +549,117 @@ class LMSController extends Controller
     }
 
     /**
+     * Get progress records for a specific course (Admin/Trainer view enrolled employees)
+     */
+    public function getCourseProgress(Request $request, $courseId): JsonResponse
+    {
+        try {
+            // Get all progress records for this course
+            $progressRecords = DB::table('lms_learning_progress')
+                ->where('course_id', $courseId)
+                ->orderBy('enrollment_date', 'desc')
+                ->get();
+
+            // Get user details for each progress record
+            $enrolledEmployees = [];
+            foreach ($progressRecords as $progress) {
+                $employeeData = null;
+                
+                // First try to get user details from the User model (auth database)
+                try {
+                    $user = \App\Models\User::find($progress->user_id);
+                    if ($user) {
+                        $employeeData = [
+                            'employee_id' => 'EMP' . str_pad($progress->user_id, 3, '0', STR_PAD_LEFT),
+                            'name' => $user->name,
+                            'email' => $user->email,
+                            'department' => '', // Will be filled from employee_self_service
+                        ];
+                    }
+                } catch (\Exception $e) {
+                    // Auth database might not be available, continue to employee_self_service
+                }
+                
+                // If no user data from auth, try employee_self_service table
+                if (!$employeeData) {
+                    $employee = DB::table('employee_self_service')
+                        ->where('auth_user_id', $progress->user_id)
+                        ->first();
+                    
+                    if ($employee) {
+                        $employeeData = [
+                            'employee_id' => 'EMP' . str_pad($employee->id, 3, '0', STR_PAD_LEFT),
+                            'name' => trim($employee->first_name . ' ' . $employee->last_name),
+                            'email' => $employee->email,
+                            'department' => $employee->department ?? '',
+                        ];
+                    }
+                } else {
+                    // We have user data from auth, but still need department from employee_self_service
+                    $employee = DB::table('employee_self_service')
+                        ->where('auth_user_id', $progress->user_id)
+                        ->first();
+                    
+                    if ($employee) {
+                        $employeeData['department'] = $employee->department ?? '';
+                    }
+                }
+                
+                // Use employee data if found, otherwise fallback
+                if ($employeeData) {
+                    $enrolledEmployees[] = [
+                        'id' => $progress->id,
+                        'user_id' => $progress->user_id,
+                        'employee_id' => $employeeData['employee_id'],
+                        'name' => $employeeData['name'],
+                        'email' => $employeeData['email'],
+                        'department' => $employeeData['department'] ?? '',
+                        'enrollment_date' => $progress->enrollment_date,
+                        'status' => $progress->status ?? 'in_progress',
+                        'progress' => $progress->progress ?? 0,
+                        'grade' => $progress->grade ?? '',
+                        'score' => $progress->score ?? null,
+                        'certificate_url' => $progress->certificate_url ?? '',
+                        'last_accessed' => $progress->last_accessed,
+                        'created_at' => $progress->created_at,
+                        'updated_at' => $progress->updated_at,
+                    ];
+                } else {
+                    // Fallback if no employee data found
+                    $enrolledEmployees[] = [
+                        'id' => $progress->id,
+                        'user_id' => $progress->user_id,
+                        'employee_id' => 'EMP' . str_pad($progress->user_id, 3, '0', STR_PAD_LEFT),
+                        'name' => 'User ' . $progress->user_id,
+                        'email' => 'user' . $progress->user_id . '@company.com',
+                        'department' => '',
+                        'enrollment_date' => $progress->enrollment_date,
+                        'status' => $progress->status ?? 'in_progress',
+                        'progress' => $progress->progress ?? 0,
+                        'grade' => $progress->grade ?? '',
+                        'score' => $progress->score ?? null,
+                        'certificate_url' => $progress->certificate_url ?? '',
+                        'last_accessed' => $progress->last_accessed,
+                        'created_at' => $progress->created_at,
+                        'updated_at' => $progress->updated_at,
+                    ];
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $enrolledEmployees
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching course progress: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching course progress'
+            ], 500);
+        }
+    }
+
+    /**
      * Enroll user in a course
      */
     public function enrollInCourse(Request $request): JsonResponse
@@ -1174,6 +1285,9 @@ class LMSController extends Controller
                 'status' => 'sometimes|in:not_started,in_progress,completed,overdue',
                 'score' => 'nullable|numeric|min:0|max:100',
                 'notes' => 'nullable|string',
+                'grade' => 'nullable|string|max:10',
+                'certificate_url' => 'nullable|string',
+                'certificate_uploaded' => 'sometimes|boolean',
             ]);
 
             if ($validator->fails()) {
@@ -1185,7 +1299,7 @@ class LMSController extends Controller
             }
 
             $updateData = array_filter($request->only([
-                'progress', 'status', 'score', 'notes'
+                'progress', 'status', 'score', 'notes', 'grade', 'certificate_url', 'certificate_uploaded'
             ]));
 
             $updateData['last_accessed'] = now();

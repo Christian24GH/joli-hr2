@@ -10,11 +10,16 @@ import { Layout } from './layout/ProtectedLayout';
 import NotFound from './main/not-found';
 
 import HR2Dashboard from './hr2/db'
-import HR2CompetencyManagement from './hr2/cms'
-import HR2LearningManagement from './hr2/lms'
-import HR2TrainingManagement from './hr2/tms'
-import HR2SuccessionPlanning from './hr2/sps'
-import HR2EmployeeSelfService from './hr2/ess'
+import HR2PersonalData from './hr2/personal_data.jsx'
+import HR2RequestForms from './hr2/request_forms.jsx'
+import HR2TrainingManagement from './hr2/T_catalog.jsx'
+import HR2TrainingHistory from './hr2/T_history.jsx'
+import HR2LearningCatalog from './hr2/L_catalog.jsx'
+import HR2LearningHistory from './hr2/L_history.jsx'
+import HR2TalentAnalytics from './hr2/talent_analytics.jsx'
+import HR2LeadershipDevelopment from './hr2/leadership_dev.jsx'
+import HR2CompetencyProfile from './hr2/comp_profile.jsx'
+import HR2AssessmentDevelopment from './hr2/assess_dev.jsx'
 
 //console.log('app: src/main.jsx loaded'); 
 const baseUrl = import.meta.env.VITE_BASE_URL
@@ -29,12 +34,22 @@ createRoot(document.getElementById('root')).render(
         <Routes>
 
           <Route path="/" element={<Layout allowedRoles={['Super Admin', 'HR2 Admin', 'Trainer', 'Employee']} />}>
-            <Route index element={<HR2Dashboard />} />
-            <Route path="cms" element={<HR2CompetencyManagement />} />
-            <Route path="lms" element={<HR2LearningManagement />} />
-            <Route path="tms" element={<HR2TrainingManagement />} />
-            <Route path="sps" element={<HR2SuccessionPlanning />} />
-            <Route path="ess" element={<HR2EmployeeSelfService />} />
+            <Route path="db" element={<HR2Dashboard />}/>
+            {/* CMS */}
+            <Route path="comp_profile" element={<HR2CompetencyProfile />}/>
+            <Route path="assess_dev" element={<HR2AssessmentDevelopment />}/>
+            {/* ESS */}
+            <Route path="personal_data" element={<HR2PersonalData />}/>
+            <Route path="request_forms" element={<HR2RequestForms />}/>
+            {/* TMS */}
+            <Route path="T_catalog" element={<HR2TrainingManagement />}/>
+            <Route path="T_history" element={<HR2TrainingHistory />}/>
+            {/* LMS */}
+            <Route path="L_catalog" element={<HR2LearningCatalog />}/>
+            <Route path="L_history" element={<HR2LearningHistory />}/>
+            {/* SPS */}
+            <Route path="talent_analytics" element={<HR2TalentAnalytics />}/>
+            <Route path="leadership_dev" element={<HR2LeadershipDevelopment />}/>
           </Route>
 
           <Route path='*' element={<NotFound />} />

@@ -8,10 +8,11 @@ export const hr2Api = axios.create({
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
+  withCredentials: true,
 });
 
 // Add authentication interceptor
-const TOKEN_KEY = "auth_token";
+// Note: Authentication is handled via cookies (withCredentials: true)
 
 
 // Add request interceptor to handle FormData
@@ -49,32 +50,6 @@ hr2Api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-
-(function boot() {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (token) {
-    hr2Api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-  }
-})();
-
-export function setHR2Token(token) {
-  if (!token) {
-    delete hr2Api.defaults.headers.common["Authorization"];
-    return;
-  }
-  hr2Api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-}
-
-// Sync with auth token changes
-export function syncHR2Token() {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (token) {
-    hr2Api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-  } else {
-    delete hr2Api.defaults.headers.common["Authorization"];
-  }
-}
 
 export const hr2 = {
   backendBase: hr2Base,
@@ -116,6 +91,15 @@ export const hr2 = {
       search: (query, params = {}) => hr2Api.get('/lms/courses/search', { 
         params: { q: query, ...params } 
       }),
+      
+      // Mark course as completed (Admin/Trainer) - LOCAL STORAGE BASED FOR NOW
+      // markAsCompleted: (courseId) => hr2Api.put(`/lms/courses/${courseId}/complete`),
+      
+      // Undo mark as completed (Admin/Trainer) - LOCAL STORAGE BASED FOR NOW
+      // undoMarkAsCompleted: (courseId) => hr2Api.put(`/lms/courses/${courseId}/undo-complete`),
+      
+      // Get completed courses - LOCAL STORAGE BASED FOR NOW
+      // getCompleted: () => hr2Api.get('/lms/courses/completed'),
     },
 
     // Learning Plans
@@ -182,8 +166,23 @@ export const hr2 = {
         params: { user_id: userId, course_id: courseId } 
       }),
       
+      // Get all enrollments for a course (Admin/Trainer) - DEPRECATED: Use progress.getByCourse instead
+      // getByCourse: (courseId) => hr2Api.get(`/lms/courses/${courseId}/enrollments`),
+      
       // Bulk enroll users in course
       bulkEnroll: (courseId, userIds) => hr2Api.post(`/lms/courses/${courseId}/bulk-enroll`, { user_ids: userIds }),
+    },
+
+    // Grades Management
+    grades: {
+      // Get grade for enrollment
+      getByEnrollment: (enrollmentId) => hr2Api.get(`/lms/enrollments/${enrollmentId}/grade`),
+      
+      // Update or create grade for enrollment
+      updateOrCreate: (enrollmentId, data) => hr2Api.post(`/lms/enrollments/${enrollmentId}/grade`, data),
+      
+      // Get grades for course
+      getByCourse: (courseId) => hr2Api.get(`/lms/courses/${courseId}/grades`),
     },
 
     // Employee Actions
@@ -255,6 +254,40 @@ export const hr2 = {
   // COMPETENCY MANAGEMENT
   // ===========================================
   competency: {
+    // Get all competencies
+    getAll: (params = {}) => hr2Api.get('/competency', { params }),
+    
+    // Get competencies for a specific employee
+    getByEmployee: (employeeId) => hr2Api.get(`/competency/employee/${employeeId}`),
+    
+    // Create competency
+    create: (data) => hr2Api.post('/competency', data),
+    
+    // Update competency
+    update: (id, data) => hr2Api.put(`/competency/${id}`, data),
+    
+    // Delete competency
+    delete: (id) => hr2Api.delete(`/competency/${id}`),
+  },
+
+  // ===========================================
+  // ASSESSMENT MANAGEMENT
+  // ===========================================
+  assessment: {
+    // Get all assessments (using learning_management table)
+    getAll: (params = {}) => hr2Api.get('/learning', { params }),
+    
+    // Get assessments for a specific employee
+    getByEmployee: (employeeId) => hr2Api.get(`/learning`, { params: { employee_id: employeeId } }),
+    
+    // Create assessment
+    create: (data) => hr2Api.post('/learning', data),
+    
+    // Update assessment
+    update: (id, data) => hr2Api.put(`/learning/${id}`, data),
+    
+    // Delete assessment
+    delete: (id) => hr2Api.delete(`/learning/${id}`),
   },
 
   // ===========================================
@@ -343,6 +376,9 @@ export const hr2 = {
     
     // Issue certificate for completion
     issue: (completionId) => hr2Api.post(`/training-completions/${completionId}/certificate`),
+    
+    // Upload certificate for enrollment
+    upload: (enrollmentId, formData) => hr2Api.post(`/lms/enrollments/${enrollmentId}/certificate`, formData),
   },
 
   // Training Feedback
@@ -370,6 +406,71 @@ export const hr2 = {
   // SUCCESSION PLANNING
   // ===========================================
   succession: {
+    // Talent Pool Management
+    talentPool: {
+      // Get all talent pool data
+      getAll: (params = {}) => hr2Api.get('/succession/talent-pool', { params }),
+      
+      // Get talent pool for specific role
+      getByRole: (roleId) => hr2Api.get('/succession/talent-pool', { params: { role_id: roleId } }),
+      
+      // Update talent pool entry
+      update: (id, data) => hr2Api.put(`/succession/talent-pool/${id}`, data),
+      
+      // Create talent pool entry
+      create: (data) => hr2Api.post('/succession/talent-pool', data),
+      
+      // Delete talent pool entry
+      delete: (id) => hr2Api.delete(`/succession/talent-pool/${id}`),
+    },
+
+    // Leadership Pipeline
+    leadershipPipeline: {
+      // Get all leadership pipeline data
+      getAll: (params = {}) => hr2Api.get('/succession/leadership-pipeline', { params }),
+      
+      // Get pipeline for specific level
+      getByLevel: (level) => hr2Api.get('/succession/leadership-pipeline', { params: { level } }),
+      
+      // Update pipeline entry
+      update: (id, data) => hr2Api.put(`/succession/leadership-pipeline/${id}`, data),
+      
+      // Create pipeline entry
+      create: (data) => hr2Api.post('/succession/leadership-pipeline', data),
+      
+      // Delete pipeline entry
+      delete: (id) => hr2Api.delete(`/succession/leadership-pipeline/${id}`),
+    },
+
+    // Development Plans
+    developmentPlans: {
+      // Get all development plans
+      getAll: (params = {}) => hr2Api.get('/succession/development-plans', { params }),
+      
+      // Get plans for specific employee
+      getByEmployee: (employeeId) => hr2Api.get('/succession/development-plans', { params: { employee_id: employeeId } }),
+      
+      // Update development plan
+      update: (id, data) => hr2Api.put(`/succession/development-plans/${id}`, data),
+      
+      // Create development plan
+      create: (data) => hr2Api.post('/succession/development-plans', data),
+      
+      // Delete development plan
+      delete: (id) => hr2Api.delete(`/succession/development-plans/${id}`),
+    },
+
+    // Succession Analytics
+    analytics: {
+      // Get succession analytics overview
+      getOverview: () => hr2Api.get('/succession/analytics/overview'),
+      
+      // Get readiness distribution
+      getReadinessDistribution: () => hr2Api.get('/succession/analytics/readiness'),
+      
+      // Get pipeline gaps
+      getPipelineGaps: () => hr2Api.get('/succession/analytics/gaps'),
+    },
   },
 
   // ===========================================
@@ -385,45 +486,22 @@ export const hr2 = {
   },
   // Leave Requests
   leaveRequests: {
-    // Get all leave requests (with optional filters)
     getAll: (params = {}) => hr2Api.get('/leave-requests', { params }),
-
-    // Get leave requests for a specific employee
     getByEmployee: (employeeId, params = {}) =>
       hr2Api.get('/leave-requests', { params: { employee_id: employeeId, ...params } }),
-
-    // Get a specific leave request
     getById: (id) => hr2Api.get(`/leave-requests/${id}`),
-
-    // Create a new leave request (Employee)
     create: (data) => hr2Api.post('/leave-requests', data),
-
-    // Update leave request status (HR2 Admin approval/denial)
     updateStatus: (id, data) => hr2Api.put(`/leave-requests/${id}`, data),
-
-    // Delete a leave request (Employee can delete pending requests)
     delete: (id) => hr2Api.delete(`/leave-requests/${id}`),
-
-    // Get leave request statistics
     getStats: (params = {}) => hr2Api.get('/leave-requests-stats', { params }),
-
-    // Get pending requests (HR2 Admin)
     getPending: () => hr2Api.get('/leave-requests', { params: { status: 'Pending' } }),
-
-    // Get approved requests
     getApproved: () => hr2Api.get('/leave-requests', { params: { status: 'Accepted' } }),
-
-    // Get denied requests
     getDenied: () => hr2Api.get('/leave-requests', { params: { status: 'Denied' } }),
-
-    // Approve a leave request (HR2 Admin)
     approve: (id, adminNotes = '') =>
       hr2Api.put(`/leave-requests/${id}`, {
         status: 'Accepted',
         admin_notes: adminNotes
       }),
-
-    // Deny a leave request (HR2 Admin)
     deny: (id, adminNotes = '') =>
       hr2Api.put(`/leave-requests/${id}`, {
         status: 'Denied',
@@ -433,42 +511,21 @@ export const hr2 = {
 
   // Timesheet Adjustment Requests
   timesheetAdjustments: {
-    // Get all timesheet adjustment requests (HR2 Admin)
     getAll: (params = {}) => hr2Api.get('/timesheet-adjustments', { params }),
-
-    // Get timesheet adjustment requests for a specific employee
     getByEmployee: (employeeId, params = {}) =>
       hr2Api.get('/timesheet-adjustments', { params: { employee_id: employeeId, ...params } }),
-
-    // Get a specific timesheet adjustment request
     getById: (id) => hr2Api.get(`/timesheet-adjustments/${id}`),
-
-    // Create a new timesheet adjustment request (Employee)
     create: (data) => hr2Api.post('/timesheet-adjustments', data),
-
-    // Update timesheet adjustment request status (HR2 Admin approval/denial)
     updateStatus: (id, data) => hr2Api.put(`/timesheet-adjustments/${id}`, data),
-
-    // Delete a timesheet adjustment request (Employee can delete pending requests)
     delete: (id) => hr2Api.delete(`/timesheet-adjustments/${id}`),
-
-    // Get pending requests (HR2 Admin)
     getPending: () => hr2Api.get('/timesheet-adjustments', { params: { status: 'Pending' } }),
-
-    // Get approved requests
     getApproved: () => hr2Api.get('/timesheet-adjustments', { params: { status: 'Approved' } }),
-
-    // Get rejected requests
     getRejected: () => hr2Api.get('/timesheet-adjustments', { params: { status: 'Rejected' } }),
-
-    // Approve a timesheet adjustment request (HR2 Admin)
     approve: (id, adminNotes = '') =>
       hr2Api.put(`/timesheet-adjustments/${id}`, {
         status: 'Approved',
         admin_notes: adminNotes
       }),
-
-    // Reject a timesheet adjustment request (HR2 Admin)
     reject: (id, adminNotes = '') =>
       hr2Api.put(`/timesheet-adjustments/${id}`, {
         status: 'Rejected',
@@ -478,42 +535,21 @@ export const hr2 = {
 
   // Reimbursement Requests
   reimbursements: {
-    // Get all reimbursement requests (HR2 Admin)
     getAll: (params = {}) => hr2Api.get('/reimbursements', { params }),
-
-    // Get reimbursement requests for a specific employee
     getByEmployee: (employeeId, params = {}) =>
       hr2Api.get('/reimbursements', { params: { employee_id: employeeId, ...params } }),
-
-    // Get a specific reimbursement request
     getById: (id) => hr2Api.get(`/reimbursements/${id}`),
-
-    // Create a new reimbursement request (Employee)
     create: (data) => hr2Api.post('/reimbursements', data),
-
-    // Update reimbursement request status (HR2 Admin approval/denial)
     updateStatus: (id, data) => hr2Api.put(`/reimbursements/${id}`, data),
-
-    // Delete a reimbursement request (Employee can delete pending requests)
     delete: (id) => hr2Api.delete(`/reimbursements/${id}`),
-
-    // Get pending requests (HR2 Admin)
     getPending: () => hr2Api.get('/reimbursements', { params: { status: 'Pending' } }),
-
-    // Get approved requests
     getApproved: () => hr2Api.get('/reimbursements', { params: { status: 'Approved' } }),
-
-    // Get rejected requests
     getRejected: () => hr2Api.get('/reimbursements', { params: { status: 'Rejected' } }),
-
-    // Approve a reimbursement request (HR2 Admin)
     approve: (id, adminNotes = '') =>
       hr2Api.put(`/reimbursements/${id}`, {
         status: 'Approved',
         admin_notes: adminNotes
       }),
-
-    // Reject a reimbursement request (HR2 Admin)
     reject: (id, adminNotes = '') =>
       hr2Api.put(`/reimbursements/${id}`, {
         status: 'Rejected',
@@ -528,7 +564,9 @@ export const hr2 = {
     getAuthUsers: () => hr2Api.get('/auth-users'),
     getCombinedEmployees: () => hr2Api.get('/combined-employees'),
     createEmployeeFromUser: (data) => hr2Api.post('/employees/from-user', data),
-    updateUser: (id, data) => authApi.put(`/api/users/${id}`, data),
+    updateUser: (id, data) => authApi.put(`/users/${id}`, data),
+
+    get: (id) => authApi.get(`/users/${id}`),
   },
 };
 

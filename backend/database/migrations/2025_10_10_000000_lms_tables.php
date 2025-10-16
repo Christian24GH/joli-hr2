@@ -12,14 +12,21 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // ===========================================
+        // LMS TABLES CREATION AND MODIFICATIONS
+        // ===========================================
+
         // Course Catalog Table
         Schema::create('lms_courses', function (Blueprint $table) {
             $table->id();
             $table->string('title');
             $table->text('description');
+            $table->text('objectives')->nullable(); // Added from 2025_10_04 migration
             $table->string('category');
             $table->string('level')->default('Beginner'); // Beginner, Intermediate, Advanced
-            $table->string('duration');
+            $table->datetime('schedule_date')->nullable(); // Added from 2025_10_07 migration
+            $table->string('duration')->nullable(); // Made nullable from 2025_10_08 migration
+            $table->datetime('schedule')->nullable(); // Added from 2025_10_07 migration (renamed from duration)
             $table->decimal('rating', 2, 1)->default(0.0);
             $table->integer('enrolled_count')->default(0);
             $table->json('tags')->nullable();
@@ -27,10 +34,12 @@ return new class extends Migration
             $table->json('enrolled_users')->nullable(); // Array of user IDs
             $table->string('instructor')->nullable();
             $table->text('content_url')->nullable();
+            $table->text('meeting_link')->nullable(); // Added from 2025_10_07 migration
+            $table->text('assessment_link')->nullable(); // Added from 2025_10_07 migration
             $table->enum('status', ['active', 'inactive', 'draft'])->default('active');
-            $table->unsignedBigInteger('created_by');
+            $table->unsignedBigInteger('created_by')->nullable(); // Made nullable from 2025_10_07 migration
             $table->timestamps();
-            
+
             $table->index(['category', 'level', 'status']);
             $table->index('created_by');
         });
@@ -41,13 +50,13 @@ return new class extends Migration
             $table->string('title');
             $table->text('description');
             $table->json('courses'); // Array of course IDs
-            $table->date('due_date')->nullable();
+            $table->date('due_date')->nullable(); // Made nullable from 2025_10_07 migration
             $table->integer('estimated_hours')->nullable();
             $table->enum('status', ['active', 'completed', 'overdue', 'draft'])->default('active');
             $table->json('assigned_users')->nullable(); // Array of user IDs
             $table->unsignedBigInteger('created_by');
             $table->timestamps();
-            
+
             $table->index('status');
             $table->index('created_by');
             $table->index('due_date');
@@ -66,9 +75,11 @@ return new class extends Migration
             $table->enum('status', ['not_started', 'in_progress', 'completed', 'overdue'])->default('not_started');
             $table->timestamp('last_accessed')->nullable();
             $table->decimal('score', 5, 2)->nullable();
+            $table->string('grade')->nullable(); // Added from 2025_10_09 migration
+            $table->string('certificate_url')->nullable(); // Added from 2025_10_09 migration
             $table->text('notes')->nullable();
             $table->timestamps();
-            
+
             $table->foreign('course_id')->references('id')->on('lms_courses')->onDelete('cascade');
             $table->unique(['user_id', 'course_id']);
             $table->index(['user_id', 'status']);
@@ -88,7 +99,7 @@ return new class extends Migration
             $table->boolean('is_required')->default(true);
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
-            
+
             $table->foreign('course_id')->references('id')->on('lms_courses')->onDelete('cascade');
             $table->index(['course_id', 'order']);
         });
@@ -106,7 +117,7 @@ return new class extends Migration
             $table->timestamp('completed_at')->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();
-            
+
             $table->foreign('course_id')->references('id')->on('lms_courses')->onDelete('cascade');
             $table->foreign('module_id')->references('id')->on('lms_course_modules')->onDelete('cascade');
             $table->unique(['user_id', 'module_id']);
@@ -128,7 +139,7 @@ return new class extends Migration
             $table->foreign('course_id')->references('id')->on('lms_courses')->onDelete('cascade');
         });
 
-        // Insert Sample Data
+        // Insert Sample Data (optional - uncomment if needed)
         // $this->insertSampleData();
     }
 
@@ -143,5 +154,43 @@ return new class extends Migration
         Schema::dropIfExists('lms_learning_progress');
         Schema::dropIfExists('lms_learning_plans');
         Schema::dropIfExists('lms_courses');
+    }
+
+    /**
+     * Insert sample data (optional method)
+     */
+    private function insertSampleData(): void
+    {
+        // Sample courses
+        DB::table('lms_courses')->insert([
+            [
+                'title' => 'Introduction to Project Management',
+                'description' => 'Learn the fundamentals of project management methodologies and best practices.',
+                'objectives' => 'Understand project lifecycle, learn PM tools, master stakeholder management',
+                'category' => 'Management',
+                'level' => 'Beginner',
+                'schedule_date' => now()->addDays(7),
+                'duration' => '4 weeks',
+                'instructor' => 'John Smith',
+                'status' => 'active',
+                'created_by' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'title' => 'Advanced Leadership Skills',
+                'description' => 'Develop advanced leadership competencies for senior management roles.',
+                'objectives' => 'Master strategic thinking, enhance communication skills, lead organizational change',
+                'category' => 'Leadership',
+                'level' => 'Advanced',
+                'schedule_date' => now()->addDays(14),
+                'duration' => '6 weeks',
+                'instructor' => 'Sarah Johnson',
+                'status' => 'active',
+                'created_by' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
     }
 };

@@ -38,6 +38,7 @@ Route::prefix('hr2')->group(function () {
         
         // Learning Progress Management
         Route::get('/progress', [LMSController::class, 'getLearningProgress']);
+        Route::get('/courses/{courseId}/progress', [LMSController::class, 'getCourseProgress']);
         Route::post('/enroll', [LMSController::class, 'enrollInCourse']);
         Route::delete('/enroll', [LMSController::class, 'unenrollFromCourse']);
         Route::put('/progress/{id}', [LMSController::class, 'updateProgress']);
@@ -154,6 +155,34 @@ Route::prefix('hr2')->group(function () {
     Route::get('/reimbursements/{id}', [ESSController::class, 'showReimbursement']);
     Route::put('/reimbursements/{id}', [ESSController::class, 'updateReimbursementStatus']);
     Route::delete('/reimbursements/{id}', [ESSController::class, 'deleteReimbursement']);
+
+    // ===========================================
+    // SUCCESSION PLANNING
+    // ===========================================
+    Route::prefix('succession')->group(function () {
+        // Talent Pool Management
+        Route::get('/talent-pool', [SPController::class, 'getTalentPool']);
+        Route::post('/talent-pool', [SPController::class, 'createTalentPoolEntry']);
+        Route::put('/talent-pool/{id}', [SPController::class, 'updateTalentPoolEntry']);
+        Route::delete('/talent-pool/{id}', [SPController::class, 'deleteTalentPoolEntry']);
+
+        // Leadership Pipeline Management
+        Route::get('/leadership-pipeline', [SPController::class, 'getLeadershipPipeline']);
+        Route::post('/leadership-pipeline', [SPController::class, 'createLeadershipPipelineEntry']);
+        Route::put('/leadership-pipeline/{id}', [SPController::class, 'updateLeadershipPipelineEntry']);
+        Route::delete('/leadership-pipeline/{id}', [SPController::class, 'deleteLeadershipPipelineEntry']);
+
+        // Development Plans Management
+        Route::get('/development-plans', [SPController::class, 'getDevelopmentPlans']);
+        Route::post('/development-plans', [SPController::class, 'createDevelopmentPlan']);
+        Route::put('/development-plans/{id}', [SPController::class, 'updateDevelopmentPlan']);
+        Route::delete('/development-plans/{id}', [SPController::class, 'deleteDevelopmentPlan']);
+
+        // Succession Analytics
+        Route::get('/analytics/overview', [SPController::class, 'getSuccessionAnalytics']);
+        Route::get('/analytics/readiness', [SPController::class, 'getReadinessDistribution']);
+        Route::get('/analytics/gaps', [SPController::class, 'getPipelineGaps']);
+    });
 
     // ===========================================
     // USER INTEGRATION

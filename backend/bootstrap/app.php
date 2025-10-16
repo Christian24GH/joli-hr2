@@ -15,7 +15,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // Remove statefulApi() for pure API backend
         // $middleware->statefulApi();
-        $middleware->append(CookieTokenMiddleware::class);
+        //Dito dapat kayo naglalagay ng middlewares for global. If api middleware lang, dun sa routes/api.php using ->middleware('name')
+        //$middleware->append(CookieTokenMiddleware::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
