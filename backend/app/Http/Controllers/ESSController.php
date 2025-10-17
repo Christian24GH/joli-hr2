@@ -25,7 +25,7 @@ class ESSController extends Controller
     {
         try {
             // Get auth users from the auth service
-            $authServiceUrl = env('AUTH_SERVICE_URL', 'http://localhost:8091');
+            $authServiceUrl = env('AUTH_SERVICE_URL', 'http://auth.jolitravel.local');
             $response = Http::get($authServiceUrl . '/api/users');
             
             if (!$response->successful()) {
